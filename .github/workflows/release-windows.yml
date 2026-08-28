@@ -1,0 +1,61 @@
+name: Build and release Windows executable
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Type-check
+        run: pnpm check
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Build Windows portable executable
+        run: pnpm desktop:win
+
+      - name: Upload executable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ferramenta-da-qa-windows
+          path: release/Ferramenta-da-QA-*-portable.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            release/Ferramenta-da-QA-*-portable.exe \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "Ferramenta da QA ${GITHUB_REF_NAME}" \
+            --generate-notes

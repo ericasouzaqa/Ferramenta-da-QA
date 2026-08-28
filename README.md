@@ -49,6 +49,18 @@ pnpm desktop:win
 
 O executável fica em `release/Ferramenta-da-QA-1.1.0-portable.exe`. Depois de gerado, ele funciona localmente sem internet. A execução final deve ser conferida em uma máquina Windows real.
 
+### Baixar pelo GitHub
+
+A versão mais recente do executável portátil para Windows está disponível na página de [Releases](https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/latest). Baixe o arquivo `.exe`, salve-o em uma pasta local e execute-o. Não é necessário instalar ou ter Node.js, pnpm ou conexão com a internet.
+
+O workflow `.github/workflows/release-windows.yml` executa a verificação de tipos, os testes, o build do Electron e publica automaticamente o executável quando uma tag no formato `v*` é enviada para a branch remota. Para publicar uma nova versão, atualize o campo `version` do `package.json`, faça commit e envie a tag correspondente, por exemplo:
+
+```bash
+git tag v1.1.0
+git push origin v1.1.0
+```
+
+
 ## Persistência local
 
 A fonte textual é mantida no armazenamento local do navegador. Os dados pertencem ao perfil e ao dispositivo em que foram inseridos. Não existe sincronização entre máquinas, banco de dados, conta de usuário ou cópia automática para a nuvem. Limpar os dados do navegador pode remover a fonte salva.
