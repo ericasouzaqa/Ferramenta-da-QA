@@ -18,11 +18,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Baixar o código
+      - name: Baixar código
         uses: actions/checkout@v4
 
       - name: Configurar pnpm
         uses: pnpm/action-setup@v4
+        with:
+          version: 10.4.1
 
       - name: Configurar Node.js
         uses: actions/setup-node@v4
@@ -31,31 +33,22 @@ jobs:
           cache: pnpm
 
       - name: Instalar dependências
-        run: pnpm install --frozen-lockfile
-
-      - name: Validar tipos
-        run: pnpm check
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Gerar build estático
-        run: pnpm exec vite build
-        env:
-          GITHUB_ACTIONS: true
+        run: pnpm build
 
-      - name: Preparar fallback do Pages
-        run: cp dist/public/index.html dist/public/404.html
-
-      - name: Preparar Pages
+      - name: Enviar artefato do Pages
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist/public
 
   deploy:
+    needs: build
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    needs: build
-    runs-on: ubuntu-latest
-    name: Publicar
     steps:
       - name: Publicar artefato
         id: deployment

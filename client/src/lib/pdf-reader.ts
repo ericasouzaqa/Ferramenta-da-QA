@@ -1,5 +1,5 @@
 /**
- * Design philosophy — Caderno de Evidências:
+ * Leitura local de páginas e preservação da evidência textual:
  * every page is read in order. Text and rendered evidence remain separate so a
  * visual observation can never silently become a requirement.
  */
@@ -16,21 +16,6 @@ export type PdfExtraction = {
   hasSearchableText: boolean;
   pages: PdfPageExtraction[];
 };
-
-export type PdfDetectedContext = {
-  title: string;
-  pages: number[];
-  sourceExcerpts: string[];
-  visualEvidence: string[];
-  status: "fornecido" | "a confirmar";
-};
-
-/** Identifies pages whose extracted source keeps three or more visual table columns. */
-export function detectComplexPdfLayoutPages(pages: Array<Pick<PdfPageExtraction, "page" | "text">>): number[] {
-  return pages
-    .filter((page) => page.text.split("\n").some((line) => (line.match(/\t/g)?.length ?? 0) >= 2))
-    .map((page) => page.page);
-}
 
 type PdfTextItem = {
   str?: string;
@@ -268,83 +253,13 @@ export function reconstructPdfPageText(items: unknown[]): string {
     .trim();
 }
 
-/** Returns source text that retains every page marker, including scanned pages with no text layer. */
+/** Retorna texto de origem mantendo marcadores de todas as páginas, inclusive sem camada textual. */
 export function pdfSourceText(extraction: Pick<PdfExtraction, "text" | "pages">): string {
   if (extraction.text.trim()) return extraction.text;
   return extraction.pages.map((page) => [
     `[Página ${page.page}]`,
-    "(Sem camada de texto pesquisável. A evidência visual deve ser confirmada em sessão autenticada.)",
+    "(Sem camada de texto pesquisável. A evidência visual deve ser confirmada manualmente.)",
   ].join("\n")).join("\n\n");
-}
-
-function explicitContextTitle(line: string): string | null {
-  const normalized = line.replace(/^[*⭐☆📖\s-]+/, "").trim();
-  const conciseTitle = (value: string) => value
-    .split("\t", 1)[0]
-    .split(/\s*→/, 1)[0]
-    .replace(/[\s:–—-]+$/, "")
-    .trim();
-  const embeddedScIndex = normalized.search(/(?:\[IMPEDIDO[^\]]*\]\s+)?SC-\d+\b/i);
-  if (embeddedScIndex > 0) {
-    const prefix = normalized.slice(0, embeddedScIndex).trim();
-    const title = conciseTitle(normalized.slice(embeddedScIndex));
-    const concisePrefix = conciseTitle(prefix);
-    if (prefix.length <= 100) return `${title} ${concisePrefix}`.trim();
-  }
-  const title = conciseTitle(normalized);
-  const isRequirement = /^(?:\[IMPEDIDO[^\]]*\]\s+)?SC-\d+\b/i.test(title)
-    || /^(?:\[IMPEDIDO[^\]]*\]\s+)?PBI\d+\b/i.test(title);
-  return isRequirement ? title : null;
-}
-
-function headingWithExplicitContinuation(lines: string[], index: number, title: string): string {
-  const nextLine = lines[index + 1]?.trim();
-  const endsWithContinuation = /(?:\s(?:a|ao|à|com|da|das|de|do|dos|e|em|o|para|por|um|uma)|[-+:])$/i.test(title);
-  const looksLikeSection = /^(?:História|Descrição|Critérios|Cenários|Fora de escopo|Como |Quero )/i.test(nextLine ?? "");
-  const startsLowercase = /^[a-zà-öø-ÿ]/.test(nextLine ?? "");
-  return (endsWithContinuation || startsLowercase) && nextLine && !looksLikeSection ? `${title} ${nextLine}` : title;
-}
-
-function addPage(context: PdfDetectedContext, page: number) {
-  if (!context.pages.includes(page)) context.pages.push(page);
-}
-
-/**
- * Detects only requirement titles explicitly present in the PDF text layer.
- * It does not infer a story, delivery, or business rule when no such title is
- * supplied by the source.
- */
-export function detectPdfContexts(pages: Pick<PdfPageExtraction, "page" | "text">[]): PdfDetectedContext[] {
-  const contexts: PdfDetectedContext[] = [];
-  let active: PdfDetectedContext | undefined;
-
-  for (const page of pages) {
-    const lines = page.text.split("\n");
-    const headings = lines.flatMap((line, index) => {
-      const title = explicitContextTitle(line);
-      return title ? [headingWithExplicitContinuation(lines, index, title)] : [];
-    });
-    if (!headings.length) {
-      if (!active) {
-        active = { title: "Contexto inicial do PDF (sem título de requisito)", pages: [], sourceExcerpts: [], visualEvidence: [], status: "a confirmar" };
-        contexts.push(active);
-      }
-      addPage(active, page.page);
-      continue;
-    }
-
-    if (!active) {
-      active = { title: "Contexto inicial do PDF (sem título de requisito)", pages: [], sourceExcerpts: [], visualEvidence: [], status: "a confirmar" };
-      contexts.push(active);
-      addPage(active, page.page);
-    }
-    for (const title of headings) {
-      active = { title, pages: [page.page], sourceExcerpts: [title], visualEvidence: [], status: "fornecido" };
-      contexts.push(active);
-    }
-  }
-
-  return contexts;
 }
 
 async function renderPagePreview(page: PdfPageLike): Promise<string> {

@@ -1,19 +1,17 @@
-# Como o painel usa cada arquivo
+# Como cada fonte é preservada
 
-Este documento explica o que o painel aproveita de cada tipo de material e o que precisa de revisão humana. A regra é simples: o que está claro na fonte pode ser organizado; o que não está claro continua pendente de confirmação.
+A aplicação mantém o material recebido no dispositivo e exibe o que foi incorporado antes da organização. O que não pode ser reconhecido com segurança permanece como conteúdo de origem ou gap para conferência.
 
-| Origem | O que é preservado | O que pode entrar em um card | O que precisa de atenção |
-| --- | --- | --- | --- |
-| Texto colado | O texto permanece editável no campo de origem. | Frases e regras escritas no próprio texto. | Trechos incompletos ou contraditórios. |
-| PDF | Texto por página, títulos claros e observações visuais quando disponíveis. | Trechos com página de origem e elementos visualmente legíveis. | PDFs sem texto pesquisável, tabelas quebradas e páginas com muitas colunas. |
-| Imagem de erro | Nome do arquivo e, com login, itens visíveis na captura. | Mensagens, códigos, controles e estados que aparecem de forma legível. | Partes cortadas, borradas ou que dependem de contexto fora da imagem. |
-| Log | Conteúdo integral e nome do arquivo. | Mensagens, códigos e ocorrências presentes no log. | Motivo do problema quando ele não está escrito no próprio log. |
-| Planilha XLSX | Abas, cabeçalhos, linhas e células vazias. | Valores e textos que aparecem nas células. | Interpretações que não estejam escritas na planilha. |
+| Origem | Preservação local | Limitação conhecida |
+| --- | --- | --- |
+| Texto colado | O texto permanece editável no campo de origem. | Estruturas sem marcadores não são interpretadas semanticamente. |
+| PDF | Texto por página e prévias locais das páginas quando disponíveis. | PDF sem camada textual não gera OCR. Tabelas complexas devem ser conferidas visualmente. |
+| Imagem | Arquivo visual preservado para conferência e nome incorporado à fonte. | Nenhum texto ou estado é descrito automaticamente. |
+| Log | Nome do arquivo e conteúdo textual incorporados à fonte. | O motivo de um problema não é deduzido quando não está escrito. |
+| Planilha XLSX | Abas, cabeçalhos, linhas e células vazias lidos localmente. | Relações ou regras não escritas nas células não são inferidas. |
 
 ## Regras práticas
 
-O painel acrescenta cada nova fonte ao texto de trabalho com a identificação da origem. Um arquivo novo não substitui os anteriores. Isso permite revisar de onde veio cada informação antes de copiá-la para um card ou para uma planilha de acompanhamento.
+Uma nova fonte é acrescentada ao texto de trabalho e não substitui as anteriores. Isso permite conferir a origem antes de organizar ou copiar um cenário. O texto de origem continua editável para correções manuais e uma nova organização pode ser executada depois da confirmação de leitura.
 
-Quando uma tabela de PDF tem várias colunas ou células em mais de uma linha, o painel mantém os fragmentos e a página. Ele não monta uma relação entre células se essa relação não estiver clara na camada textual. Nesse caso, confira a página visualmente.
-
-Um card de bug só deve trazer comportamento, impacto, critério ou cenário que tenha base no material enviado. Se faltar contexto, a saída informa que o ponto precisa de confirmação em vez de propor uma solução técnica.
+Quando uma estrutura não é reconhecida, a aplicação preserva o bloco e informa o gap correspondente. Não cria descrição, pré-condição, passo, resultado, referência ou regra ausente. A cópia para o YouTrack é somente texto formatado para colagem manual; não existe acesso automático à plataforma.

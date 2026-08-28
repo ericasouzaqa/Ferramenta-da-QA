@@ -1,123 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { organizeQaMaterial } from "./qa-organizer";
+import { formatScenario, organizeQaMaterial } from "./qa-organizer";
 
 describe("organizeQaMaterial", () => {
-  it("gera a estrutura obrigatória sem acrescentar fatos à fonte", () => {
-    const source = [
-      "Título: Erro ao salvar solicitação",
-      "Comportamento observado: ao enviar o formulário, a tela exibe erro 500.",
-      "Comportamento esperado: o sistema deve registrar a solicitação e exibir confirmação.",
-      "1. Acessar o formulário.",
-      "2. Preencher os campos obrigatórios.",
-      "3. Enviar a solicitação.",
-    ].join("\n");
+  it("retorna nulo para uma fonte vazia", () => {
+    expect(organizeQaMaterial(" \n \n ")).toBeNull();
+  });
 
+  it("preserva uma entrega sem inventar um cenário", () => {
+    const source = "O botão Salvar não responde depois do preenchimento.\nA tela permanece aberta.";
     const result = organizeQaMaterial(source);
-    const card = result?.cards[0];
-
-    expect(card?.title).toBe("Erro ao salvar solicitação");
-    expect(card?.sections.map((section) => section.title)).toEqual(["Descrição", "Itens de correção", "Critérios de aceite", "Cenários de teste"]);
-    expect(card?.cardText).toContain("a tela exibe erro 500.");
-    expect(card?.cardText).toContain("o sistema deve registrar a solicitação e exibir confirmação.");
-    expect(card?.cardText).not.toContain("navegador");
+    expect(result?.deliveries).toHaveLength(1);
+    expect(result?.deliveries[0].sourceText).toBe(source);
+    expect(result?.deliveries[0].scenarios).toHaveLength(0);
+    expect(result?.scenarios).toHaveLength(0);
   });
 
-  it("separa um card para cada problema explicitamente identificado", () => {
-    const source = [
-      "Título: Falha ao salvar perfil",
-      "Comportamento observado: o perfil não é salvo.",
-      "Comportamento esperado: o perfil deve ser salvo.",
-      "Título: Mensagem duplicada",
-      "Comportamento observado: a mensagem aparece duas vezes.",
-      "Comportamento esperado: a mensagem deve aparecer uma vez.",
-    ].join("\n");
-
-    const result = organizeQaMaterial(source);
-
-    expect(result?.cards).toHaveLength(2);
-    expect(result?.cards[0].title).toBe("Falha ao salvar perfil");
-    expect(result?.cards[1].title).toBe("Mensagem duplicada");
-  });
-
-  it("gera apenas critérios quando esse escopo é solicitado", () => {
-    const result = organizeQaMaterial("Comportamento esperado: o registro deve ser salvo.", "criterios");
-
-    expect(result?.cards[0].sections).toHaveLength(1);
-    expect(result?.cards[0].sections[0].id).toBe("acceptance");
-    expect(result?.cards[0].sections[0].content).toEqual(["o registro deve ser salvo."]);
-  });
-
-  it("gera um STEP com gaps explícitos para uma fonte sem estrutura completa", () => {
-    const result = organizeQaMaterial("Ocorre falha ao tentar enviar o formulário.", "cenarios");
-    const tests = result?.cards[0].sections[0];
-
-    expect(tests?.id).toBe("tests");
-    expect(tests?.content[0]).toContain("STEP 1");
-    expect(tests?.content[0]).toContain("Gaps e indefinições:");
-    expect(tests?.content[0]).not.toContain("[ ]");
-    expect(result?.scenarios[0].status).toBe("a confirmar");
-  });
-
-  it("transforma um relato curto de três linhas em um card completo sem criar regra de negócio", () => {
-    const source = [
-      "O botão Salvar não responde depois do preenchimento.",
-      "A tela permanece aberta e o cadastro não é concluído.",
-      "A pessoa usuária não consegue finalizar a solicitação.",
-    ].join("\n");
-
-    const card = organizeQaMaterial(source)?.cards[0];
-
-    expect(card?.sections.map((section) => section.title)).toEqual(["Descrição", "Itens de correção", "Critérios de aceite", "Cenários de teste"]);
-    expect(card?.sections[0].content.join(" ")).toContain("O botão Salvar não responde");
-    expect(card?.sections[1].content).toEqual(["Não informado no conteúdo de origem."]);
-    expect(card?.sections[2].content).toEqual(["Não informado no conteúdo de origem."]);
-    expect(card?.sections[3].content.every((scenario) => scenario.startsWith("STEP 1"))).toBe(true);
-    expect(card?.cardText).not.toMatch(/Introdução|Conclusão|emoji/i);
-  });
-
-  it("inclui somente cenários aplicáveis e mantém problemas explícitos em cards separados", () => {
-    const source = [
-      "Problema: Campo de placa aceita formato inválido",
-      "O campo permite salvar uma placa incompleta.",
-      "Problema: Botão de consulta fica desabilitado",
-      "O botão não permite iniciar a consulta após preencher a placa.",
-    ].join("\n");
-
-    const result = organizeQaMaterial(source);
-
-    expect(result?.cards).toHaveLength(2);
-    expect(result?.cards[0].scenarios).toHaveLength(1);
-    expect(result?.cards[1].scenarios).toHaveLength(1);
-    expect(result?.cards[0].scenarios[0].title).toBe("Campo de placa aceita formato inválido");
-    expect(result?.cards[1].scenarios[0].title).toBe("Botão de consulta fica desabilitado");
-    expect(result?.cards.flatMap((card) => card.sections.map((section) => section.title))).not.toContain("Revisão de lacunas");
-  });
-
-  it("separa dois problemas curtos por parágrafo mesmo sem rótulos formais", () => {
+  it("organiza um STEP completo com referência e Gherkin", () => {
     const result = organizeQaMaterial([
-      "O botão Salvar não responde depois do preenchimento.",
-      "O cadastro não é concluído.",
-      "",
-      "A consulta apresenta mensagem duplicada.",
-      "A pessoa usuária não sabe se a consulta foi realizada.",
-    ].join("\n"));
-
-    expect(result?.cards).toHaveLength(2);
-    expect(result?.cards[0].sections[0].content.join(" ")).toContain("botão Salvar");
-    expect(result?.cards[1].sections[0].content.join(" ")).toContain("mensagem duplicada");
-  });
-
-  it("inclui impacto somente quando o efeito é descrito no problema", () => {
-    const result = organizeQaMaterial("A consulta não é concluída e impede a pessoa usuária de finalizar o atendimento.");
-
-    expect(result?.scenarios).toHaveLength(1);
-    expect(result?.scenarios[0].kind).toBe("impacto");
-    expect(result?.scenarios[0].gaps).toContain("Pré-condições não informadas nos artefatos.");
-  });
-
-  it("preserva a estrutura STEP informada e mantém Gherkin quando há dados completos", () => {
-    const result = organizeQaMaterial([
+      "STEP 1",
       "Título: Ativar campanha sem destinatários",
+      "Item 1",
       "Pré-condições",
       "Possuir acesso à funcionalidade de criação de campanha.",
       "Possuir os dados necessários para preencher todos os campos obrigatórios.",
@@ -128,21 +30,20 @@ describe("organizeQaMaterial", () => {
       "Resultado esperado",
       "Bloquear a criação da campanha.",
       "Não concluir o cadastro da campanha sem que um arquivo XLSX seja informado.",
-      "Gaps e indefinições:",
-      "Não foi informado o texto da mensagem de validação apresentada ao usuário.",
-    ].join("\n"), "cenarios");
+    ].join("\n"));
     const scenario = result?.scenarios[0];
-
+    expect(result?.deliveries).toHaveLength(1);
     expect(scenario?.title).toBe("Ativar campanha sem destinatários");
-    expect(scenario?.steps).toHaveLength(3);
+    expect(scenario?.reference).toBe("Item 1");
     expect(scenario?.preconditions).toHaveLength(2);
+    expect(scenario?.steps).toHaveLength(3);
     expect(scenario?.expectedResult).toHaveLength(2);
-    expect(scenario?.gaps).toContain("Não foi informado o texto da mensagem de validação apresentada ao usuário.");
+    expect(scenario?.gaps).toEqual([]);
     expect(scenario?.gherkin).toContain("Funcionalidade: Ativar campanha sem destinatários");
-    expect(result?.cards[0].sections[0].content[0]).toContain("STEP 1");
+    expect(formatScenario(scenario!)).toContain("STEP 1");
   });
 
-  it("separa uma entrega em partes STEP e preserva referências explícitas", () => {
+  it("separa entregas STEP e preserva referências Item e PBA", () => {
     const result = organizeQaMaterial([
       "STEP 1",
       "Título: Cadastro de campanha",
@@ -151,7 +52,6 @@ describe("organizeQaMaterial", () => {
       "Possuir acesso ao cadastro.",
       "Passos",
       "Preencher os campos obrigatórios.",
-      "Clicar em salvar.",
       "Resultado esperado",
       "Exibir confirmação do cadastro.",
       "STEP 2",
@@ -165,15 +65,45 @@ describe("organizeQaMaterial", () => {
       "Resultado esperado",
       "Ativar a campanha.",
     ].join("\n"));
-
-    expect(result?.cards).toHaveLength(2);
+    expect(result?.deliveries).toHaveLength(2);
     expect(result?.scenarios).toHaveLength(2);
     expect(result?.scenarios[0].reference).toBe("Item 1");
     expect(result?.scenarios[1].reference).toBe("PBA 02");
-    expect(result?.scenarios.every((scenario) => scenario.steps.length <= 8)).toBe(true);
   });
 
-  it("não gera resultado para uma fonte vazia", () => {
-    expect(organizeQaMaterial(" \n \n ")).toBeNull();
+  it("separa funcionalidades por referências explícitas repetidas mesmo sem STEP", () => {
+    const result = organizeQaMaterial(["Título: Cadastro", "Item 1", "Passos", "Cadastrar.", "Resultado esperado", "Concluir.", "Título: Ativação", "PBI 2", "Passos", "Ativar.", "Resultado esperado", "Ativar."].join("\n"));
+    expect(result?.deliveries).toHaveLength(2);
+    expect(result?.deliveries[0].scenarios[0].reference).toBe("Item 1");
+    expect(result?.deliveries[1].scenarios[0].reference).toBe("PBI 2");
+  });
+
+  it("divide uma funcionalidade com mais de oito passos em STEPs complementares", () => {
+    const result = organizeQaMaterial(["STEP 1", "Título: Fluxo", "Passos", "1. Um", "2. Dois", "3. Três", "4. Quatro", "5. Cinco", "6. Seis", "7. Sete", "8. Oito", "9. Nove", "Resultado esperado", "Concluir."].join("\n"));
+    expect(result?.scenarios).toHaveLength(2);
+    expect(result?.scenarios[0].steps).toHaveLength(8);
+    expect(result?.scenarios[1].steps).toEqual(["Nove"]);
+    expect(result?.scenarios[1].title).toContain("continuação 2");
+  });
+
+  it("registra ausências e não usa frases de comportamento inventadas", () => {
+    const result = organizeQaMaterial("STEP 1\nTítulo: Relato curto\nItem 4\nO botão não responde.");
+    const scenario = result?.scenarios[0];
+    expect(scenario?.status).toBe("a confirmar");
+    expect(scenario?.gaps).toContain("Pré-condições não informadas nos artefatos.");
+    expect(scenario?.gaps).toContain("Passos não informados nos artefatos.");
+    expect(scenario?.gaps).toContain("Resultado esperado não informado nos artefatos.");
+    expect(JSON.stringify(scenario)).not.toContain("A funcionalidade deve concluir");
+    expect(scenario?.gherkin).toBe("");
+  });
+
+  it("reconhece PBI como referência explícita", () => {
+    const result = organizeQaMaterial("STEP 1\nTítulo: Consulta\nPBI 42\nPassos\nConsultar.\nResultado esperado\nExibir resultado.");
+    expect(result?.scenarios[0].reference).toBe("PBI 42");
+  });
+
+  it("mantém gaps explícitos da fonte", () => {
+    const result = organizeQaMaterial(["STEP 1", "Título: Login", "Gaps e indefinições:", "Não foi informado o texto da mensagem."].join("\n"));
+    expect(result?.scenarios[0].gaps).toContain("Não foi informado o texto da mensagem.");
   });
 });

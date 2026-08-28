@@ -21,5 +21,5 @@ export function formatImageEvidence(fileName: string, visibleEvidence: string[],
 }
 
 export function formatUninspectedImage(fileName: string): string {
-  return `[IMAGEM · ${fileName}]\nEvidência visual anexada. A descrição legível depende de sessão autenticada e permanece a confirmar.\n[FIM DA IMAGEM · ${fileName}]`;
+  return `[IMAGEM · ${fileName}]\nEvidência visual anexada. A descrição legível não é criada automaticamente e permanece a confirmar.\n[FIM DA IMAGEM · ${fileName}]`;
 }
