@@ -115,3 +115,8 @@ client/public/__manus__/version.json
 
 release/
 *.exe
+
+# Massa de teste local, potencialmente sensível
+/test-data/massa-real-pdfs/
+/test-data/massa-real-text/
+/test-data/massa-real-audit.json

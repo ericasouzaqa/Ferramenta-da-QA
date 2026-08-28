@@ -1,4 +1,4 @@
-declare module "pdfjs-dist/build/pdf.mjs" {
+declare module "pdfjs-dist/legacy/build/pdf.mjs" {
   export const GlobalWorkerOptions: { workerSrc: string };
   export function getDocument(source: { data: Uint8Array }): { promise: Promise<{
     numPages: number;
@@ -11,8 +11,7 @@ declare module "pdfjs-dist/build/pdf.mjs" {
   }> };
 }
 
-declare module "pdfjs-dist/build/pdf.worker.min.mjs?url" {
+declare module "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url" {
   const workerUrl: string;
   export default workerUrl;
 }
-

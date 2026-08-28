@@ -140,6 +140,14 @@ describe("fluxo documental da Ferramenta da QA", () => {
   it("copia STEP e exporta CSV sem integração externa", async () => {
     const user = userEvent.setup();
     const writeText = vi.fn().mockResolvedValue(undefined);
+    const NativeBlob = globalThis.Blob;
+    let csvPart = "";
+    vi.stubGlobal("Blob", class extends NativeBlob {
+      constructor(parts?: BlobPart[], options?: BlobPropertyBag) {
+        csvPart = String(parts?.[0] ?? "");
+        super(parts, options);
+      }
+    });
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     render(<Home />);
     await user.type(screen.getByLabelText("Texto de origem"), ["STEP 1", "Título: Cadastro", "Item 1", "Pré-condições", "Possuir acesso.", "Passos", "Abrir tela.", "Resultado esperado", "Exibir tela."].join("\n"));
@@ -151,6 +159,11 @@ describe("fluxo documental da Ferramenta da QA", () => {
     await user.click(screen.getByRole("button", { name: "Ir para exportação" }));
     await user.click(await screen.findByRole("button", { name: /Baixar CSV/i }));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("STEP 1"));
+    expect(csvPart).toContain("Título");
+    expect(csvPart).toContain("Cadastro");
+    expect(csvPart).toContain("Item 1");
+    expect(csvPart).toContain("Abrir tela.");
+    expect(csvPart).toContain("Exibir tela.");
     expect(URL.createObjectURL).toHaveBeenCalled();
   });
 });

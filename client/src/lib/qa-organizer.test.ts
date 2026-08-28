@@ -106,4 +106,27 @@ describe("organizeQaMaterial", () => {
     const result = organizeQaMaterial(["STEP 1", "Título: Login", "Gaps e indefinições:", "Não foi informado o texto da mensagem."].join("\n"));
     expect(result?.scenarios[0].gaps).toContain("Não foi informado o texto da mensagem.");
   });
+
+  it("reconhece uma entrega real com referência SC, ações numeradas e critérios de aceite", () => {
+    const result = organizeQaMaterial([
+      "⭐SC-4303 Task - Remover botões de Nova ação",
+      "Descrição do incremento",
+      "1. Remover o botão Envio de comando dentro de Nova ação.",
+      "2. Manter a funcionalidade disponível no novo local.",
+      "Critérios de aceite",
+      "O botão Envio de comando não é exibido dentro de Nova ação.",
+    ].join("\n"));
+    const scenario = result?.scenarios[0];
+    expect(scenario?.reference).toBe("SC-4303");
+    expect(scenario?.steps).toHaveLength(2);
+    expect(scenario?.expectedResult).toEqual(["O botão Envio de comando não é exibido dentro de Nova ação."]);
+    expect(scenario?.status).toBe("a confirmar");
+  });
+
+  it("preserva texto exploratório sem critérios como entrega sem cenário", () => {
+    const source = "Contexto\nPerguntas e respostas\nA documentação ainda será definida.";
+    const result = organizeQaMaterial(source);
+    expect(result?.deliveries[0].sourceText).toBe(source);
+    expect(result?.scenarios).toEqual([]);
+  });
 });

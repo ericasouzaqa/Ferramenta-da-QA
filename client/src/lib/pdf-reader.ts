@@ -34,13 +34,13 @@ type PdfPageLike = {
 const MAX_PAGE_PREVIEW_LENGTH = 1_450_000;
 const MIN_RENDER_SCALE = 0.42;
 
-let readerPromise: Promise<{ getDocument: typeof import("pdfjs-dist/build/pdf.mjs").getDocument }> | null = null;
+let readerPromise: Promise<{ getDocument: typeof import("pdfjs-dist/legacy/build/pdf.mjs").getDocument }> | null = null;
 
 function loadPdfReader() {
   if (!readerPromise) {
     readerPromise = Promise.all([
-      import("pdfjs-dist/build/pdf.mjs"),
-      import("pdfjs-dist/build/pdf.worker.min.mjs?url"),
+      import("pdfjs-dist/legacy/build/pdf.mjs"),
+      import("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url"),
     ]).then(([pdfjs, worker]) => {
       pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
       return { getDocument: pdfjs.getDocument };
