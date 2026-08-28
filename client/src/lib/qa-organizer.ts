@@ -156,27 +156,6 @@ function inferTitle(lines: CategorizedLine[], _index: number): string {
   return explicit ? removeExplicitLabel(explicit.value) || "Título não informado" : "Título não informado";
 }
 
-function scenarioCheck(kind: ScenarioKind): string {
-  const checks: Record<ScenarioKind, string> = {
-    "fluxo principal": "Executar a ação relacionada ao problema e confirmar que a falha não ocorre.",
-    "fluxo alternativo": "Executar o caminho alternativo mencionado na origem e confirmar que o retorno permanece compreensível.",
-    "regressão": "Repetir os fluxos existentes diretamente relacionados à funcionalidade afetada e confirmar que continuam funcionando.",
-    "validação": "Verificar os limites, formatos ou obrigatoriedades citados na origem.",
-    "persistência": "Confirmar que o resultado permanece correto depois de salvar, atualizar ou reabrir o conteúdo, quando aplicável.",
-    "integração": "Executar a ação que depende da integração citada e confirmar a resposta esperada.",
-    "mensagem": "Confirmar o conteúdo, a apresentação e o momento da mensagem citada.",
-    "UI": "Conferir campos, botões, estado visual e retorno da tela relacionados ao problema.",
-    "UX": "Conferir se a jornada descrita pode ser concluída de forma clara para a pessoa usuária.",
-    "permissão": "Verificar o comportamento para o perfil ou acesso citado na origem.",
-    "segurança": "Confirmar o comportamento de autenticação, autorização ou proteção de dados mencionado.",
-    "performance": "Medir o tempo de resposta ou carregamento citado e confirmar que a falha não permanece.",
-    "dados": "Validar os valores, registros ou informações citados no problema.",
-    "impacto": "Confirmar que o efeito informado para a pessoa usuária, operação ou negócio não permanece.",
-    "consistência": "Comparar os pontos relacionados e confirmar que o comportamento não fica duplicado ou divergente.",
-  };
-  return checks[kind];
-}
-
 const stepHeaders = {
   preconditions: /^pré[- ]condições?\s*:?$/i,
   steps: /^passos?\s*:?$/i,
@@ -290,11 +269,9 @@ function buildCard(lines: CategorizedLine[], index: number, scope: GenerationSco
   const expected = lines.filter((line) => line.category === "expected").map((line) => removeExplicitLabel(line.value));
   const impact = lines.filter((line) => line.category === "impact").map((line) => `Impacto: ${removeExplicitLabel(line.value)}`);
     const scenarios = matchingScenarios(lines, cardId, title).slice(0, 10);
-  const defaultExpected = "A funcionalidade deve concluir a ação informada sem apresentar a falha descrita.";
-  const expectedBehaviors = expected.length ? expected : [defaultExpected];
   const description = section("description", "Descrição", [...observed, ...expected.map((line) => `Comportamento esperado: ${line}`), ...impact]);
-  const fixes = section("fixes", "Itens de correção", expected.length ? expected.map((line) => `Ajustar o comportamento para que: ${line}`) : ["Corrigir o comportamento descrito para eliminar a falha relatada."], false, expected.length ? undefined : "organizado");
-  const acceptance = section("acceptance", "Critérios de aceite", expectedBehaviors, false, expected.length ? undefined : "organizado");
+  const fixes = section("fixes", "Itens de correção", expected.length ? expected.map((line) => `Ajustar o comportamento para que: ${line}`) : []);
+  const acceptance = section("acceptance", "Critérios de aceite", expected);
   const tests = section("tests", "Cenários de teste", scenarios.map((scenario) => formatScenario(scenario)), false, "organizado");
   const gaps = [description, fixes, acceptance, tests].filter((item) => item.evidence === "a confirmar").map((item) => `${item.title}: ${NOT_INFORMED}`);
   const review = section("review", "Revisão de lacunas", gaps.length ? gaps : ["O material contém as seções mínimas; valide se os trechos ainda representam o problema atual."], gaps.length === 0);

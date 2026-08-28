@@ -69,8 +69,8 @@ describe("organizeQaMaterial", () => {
 
     expect(card?.sections.map((section) => section.title)).toEqual(["Descrição", "Itens de correção", "Critérios de aceite", "Cenários de teste"]);
     expect(card?.sections[0].content.join(" ")).toContain("O botão Salvar não responde");
-    expect(card?.sections[1].content).toEqual(["Corrigir o comportamento descrito para eliminar a falha relatada."]);
-    expect(card?.sections[2].content).toEqual(["A funcionalidade deve concluir a ação informada sem apresentar a falha descrita."]);
+    expect(card?.sections[1].content).toEqual(["Não informado no conteúdo de origem."]);
+    expect(card?.sections[2].content).toEqual(["Não informado no conteúdo de origem."]);
     expect(card?.sections[3].content.every((scenario) => scenario.startsWith("STEP 1"))).toBe(true);
     expect(card?.cardText).not.toMatch(/Introdução|Conclusão|emoji/i);
   });

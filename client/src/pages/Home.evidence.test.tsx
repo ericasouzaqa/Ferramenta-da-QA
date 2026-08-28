@@ -221,8 +221,7 @@ describe("Home evidence import", () => {
     expect(screen.getAllByText("Itens de correção").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Critérios de aceite").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Cenários de teste").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Corrigir o comportamento descrito para eliminar a falha relatada.").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("A funcionalidade deve concluir a ação informada sem apresentar a falha descrita.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Não informado no conteúdo de origem.").length).toBeGreaterThan(0);
     expect(screen.getByText("STEP 1")).toBeTruthy();
     expect(screen.getByText("Gaps e indefinições")).toBeTruthy();
   });
