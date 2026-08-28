@@ -1,5 +1,10 @@
-import { describe, expect, it } from "vitest";
-import { pdfSourceText, reconstructPdfPageText } from "./pdf-reader";
+import { describe, expect, it, vi } from "vitest";
+import { extractPdfEvidence, pdfSourceText, reconstructPdfPageText } from "./pdf-reader";
+
+const { getDocumentMock } = vi.hoisted(() => ({ getDocumentMock: vi.fn() }));
+
+vi.mock("pdfjs-dist/legacy/build/pdf.mjs", () => ({ GlobalWorkerOptions: {}, getDocument: getDocumentMock }));
+vi.mock("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url", () => ({ default: "worker.js" }));
 
 describe("reconstructPdfPageText", () => {
   it("preserva quebras entre linhas sem reordenar os fragmentos entregues pelo PDF", () => {
@@ -54,6 +59,28 @@ describe("reconstructPdfPageText", () => {
     ]);
     expect(text).toContain("Nome da campanha\tSim\tTexto curto");
     expect(text).toContain("Canal\tSim\tWhatsApp");
+  });
+});
+
+describe("extractPdfEvidence", () => {
+  it("preserva texto quando a prévia visual falha", async () => {
+    getDocumentMock.mockReturnValueOnce({
+      promise: Promise.resolve({
+        numPages: 1,
+        getPage: async () => ({
+          getTextContent: async () => ({ items: [{ str: "Texto preservado", transform: [1, 0, 0, 1, 40, 500], width: 80, height: 10 }] }),
+          getViewport: () => ({ width: 100, height: 100 }),
+          render: () => ({ promise: Promise.reject(new Error("falha de canvas")) }),
+        }),
+        destroy: async () => undefined,
+      }),
+    });
+
+    const result = await extractPdfEvidence(new File(["pdf"], "result (5).pdf", { type: "application/pdf" }));
+    expect(result.text).toContain("Texto preservado");
+    expect(result.hasSearchableText).toBe(true);
+    expect(result.previewFailures).toBe(1);
+    expect(result.pages[0].imageDataUrl).toBe("");
   });
 });
 

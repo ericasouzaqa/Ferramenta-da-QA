@@ -119,7 +119,8 @@ export default function Home() {
       const extraction = await extractPdfEvidence(file);
       changeSource(appendEvidenceBlocks(source, [`[PDF: ${file.name}]\n${pdfSourceText(extraction)}`]));
       setVisualEvidence((current) => [...current, ...extraction.pages.filter((page) => page.imageDataUrl).map((page) => ({ name: `${file.name}, página ${page.page}`, source: page.imageDataUrl, type: "PDF" as const }))]);
-      toast.success(`PDF lido localmente: ${extraction.pageCount} página(s). Revise a fonte antes de continuar.`);
+      const previewNotice = extraction.previewFailures > 0 ? ` ${extraction.previewFailures} página(s) sem prévia visual; conferir manualmente.` : "";
+      toast.success(`PDF lido localmente: ${extraction.pageCount} página(s).${previewNotice} Revise a fonte antes de continuar.`);
     } catch {
       changeSource(appendEvidenceBlocks(source, [`[PDF: ${file.name}]\n[PDF não identificado]\nA leitura textual não foi concluída. Conferir o arquivo manualmente.`]));
       toast.error("PDF preservado como GAP para conferência manual.");

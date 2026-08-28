@@ -14,6 +14,7 @@ export type PdfExtraction = {
   text: string;
   pageCount: number;
   hasSearchableText: boolean;
+  previewFailures: number;
   pages: PdfPageExtraction[];
 };
 
@@ -288,23 +289,32 @@ export async function extractPdfEvidence(file: File): Promise<PdfExtraction> {
   const pdfDocument = await loadingTask.promise;
   const pageCount = pdfDocument.numPages;
   const pages: PdfPageExtraction[] = [];
+  let previewFailures = 0;
 
   try {
     for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
       const page = await pdfDocument.getPage(pageNumber) as PdfPageLike;
       const content = await page.getTextContent();
       const text = reconstructPdfPageText(content.items);
-      const imageDataUrl = await renderPagePreview(page);
+      let imageDataUrl = "";
+      try {
+        imageDataUrl = await renderPagePreview(page);
+      } catch {
+        previewFailures += 1;
+      }
       pages.push({ page: pageNumber, text, imageDataUrl });
     }
   } finally {
-    await pdfDocument.destroy();
+    const documentLifecycle = pdfDocument as unknown as { cleanup?: () => void; destroy?: () => Promise<void> };
+    if (typeof documentLifecycle.cleanup === "function") documentLifecycle.cleanup();
+    else if (typeof documentLifecycle.destroy === "function") await documentLifecycle.destroy();
   }
 
   return {
     text: pages.filter((page) => page.text).map((page) => `[Página ${page.page}]\n${page.text}`).join("\n\n"),
     pageCount,
     hasSearchableText: pages.some((page) => Boolean(page.text)),
+    previewFailures,
     pages,
   };
 }
