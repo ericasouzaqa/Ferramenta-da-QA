@@ -1,0 +1,18 @@
+appId: com.sinalqa.painel
+productName: Ferramenta da QA
+icon: desktop/icon.ico
+asar: true
+compression: store
+npmRebuild: false
+nodeGypRebuild: false
+files:
+  - dist/public/**/*
+  - desktop/**/*
+directories:
+  output: release
+win:
+  target:
+    - portable
+  artifactName: Ferramenta-da-QA-${version}-${arch}.${ext}
+portable:
+  artifactName: Ferramenta-da-QA-${version}-portable.${ext}

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title>Ferramenta da QA</title>
+  <desc>Marca geométrica em ciano e magenta</desc>
+  <rect width="128" height="128" rx="28" fill="#241436"/>
+  <path d="M28 38h72v16H72v42H56V54H28z" fill="#48e2ef"/>
+  <path d="M76 38h24v52H84V54H76z" fill="#ea39cb" opacity=".92"/>
+  <circle cx="42" cy="90" r="8" fill="#ea39cb"/>
+</svg>
