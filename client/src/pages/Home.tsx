@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { extractPdfEvidence, pdfSourceText } from "@/lib/pdf-reader";
+import { extractPdfEvidence, pdfSourceText, type PdfExtraction } from "@/lib/pdf-reader";
 import { appendEvidenceBlocks, formatImageEvidence, formatLogEvidence, formatUninspectedImage } from "@/lib/evidence-sources";
 import { extractSpreadsheetEvidence } from "@/lib/xlsx-reader";
 import { formatScenario, type GeneratedScenario, type OrganizedQaMaterial, organizeQaMaterial } from "@/lib/qa-organizer";
@@ -89,6 +89,7 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [selectedDelivery, setSelectedDelivery] = useState(0);
   const [visualEvidence, setVisualEvidence] = useState<Array<{ name: string; source: string; type: "PDF" | "Imagem" }>>([]);
+  const [pdfSummary, setPdfSummary] = useState<Pick<PdfExtraction, "pageCount" | "textPages" | "ocrPages" | "emptyPages" | "lowConfidencePages" | "warnings" | "readStatus"> | null>(null);
 
   useEffect(() => {
     try {
@@ -105,11 +106,13 @@ export default function Home() {
   const gherkinReasons = Array.from(new Set(scenarios.flatMap((scenario) => scenario.gherkin ? [] : scenario.gaps)));
   const stepsText = scenarios.map(formatScenario).join("\n\n");
   const blocks = useMemo(() => countBlocks(source), [source]);
+  const pdfReadPartial = pdfSummary?.readStatus === "parcial" || /\[Página \d+ · (?:OCR local|sem conteúdo identificado)\]/.test(source);
 
   function changeSource(value: string) {
     setSource(value);
     setConfirmed(false);
     setMaterial(null);
+    setPdfSummary(null);
     setStage("fonte");
   }
 
@@ -118,9 +121,14 @@ export default function Home() {
     try {
       const extraction = await extractPdfEvidence(file);
       changeSource(appendEvidenceBlocks(source, [`[PDF: ${file.name}]\n${pdfSourceText(extraction)}`]));
+      setPdfSummary(extraction);
       setVisualEvidence((current) => [...current, ...extraction.pages.filter((page) => page.imageDataUrl).map((page) => ({ name: `${file.name}, página ${page.page}`, source: page.imageDataUrl, type: "PDF" as const }))]);
       const previewNotice = extraction.previewFailures > 0 ? ` ${extraction.previewFailures} página(s) sem prévia visual; conferir manualmente.` : "";
-      toast.success(`PDF lido localmente: ${extraction.pageCount} página(s).${previewNotice} Revise a fonte antes de continuar.`);
+      const readNotice = extraction.readStatus === "parcial"
+        ? `Documento parcialmente identificado: ${extraction.ocrPages.length} página(s) processada(s) por OCR ou com conteúdo ausente. Revise antes de organizar.`
+        : `PDF lido localmente: ${extraction.pageCount} página(s). Revise a fonte antes de continuar.`;
+      if (extraction.readStatus === "parcial") toast.warning(`${readNotice}${previewNotice}`);
+      else toast.success(`${readNotice}${previewNotice}`);
     } catch {
       changeSource(appendEvidenceBlocks(source, [`[PDF: ${file.name}]\n[PDF não identificado]\nA leitura textual não foi concluída. Conferir o arquivo manualmente.`]));
       toast.error("PDF preservado como GAP para conferência manual.");
@@ -166,6 +174,10 @@ export default function Home() {
       toast.error("Confirme a leitura integral antes de organizar.");
       return;
     }
+    if (pdfReadPartial) {
+      toast.error("A fonte PDF está parcialmente identificada. Revise as páginas e corrija a fonte antes de organizar.");
+      return;
+    }
     const organized = organizeQaMaterial(source);
     if (!organized) {
       toast.error("Informe uma fonte antes de organizar.");
@@ -201,7 +213,7 @@ export default function Home() {
         {STAGES.map((item, index) => <button key={item.id} className={`stage-button ${stage === item.id ? "is-active" : ""}`} onClick={() => navigate(item.id)}><span>{String(index + 1).padStart(2, "0")}</span>{item.label}</button>)}
       </nav>
 
-      {stage === "fonte" && <section className="workspace"><div className="section-heading"><div><p className="eyebrow">Etapa 01</p><h2>Fonte do documento</h2></div><span className="status-badge">Leitura local</span></div><p className="section-lead">Cole o texto original ou carregue um arquivo. Nada é organizado antes da sua confirmação de leitura.</p><div className="import-row"><label className="button button-primary">Ler PDF<input type="file" accept="application/pdf" hidden disabled={busy} onChange={(event) => event.target.files?.[0] && readPdf(event.target.files[0])} /></label><label className="button button-secondary">Ler XLSX<input type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden disabled={busy} onChange={(event) => event.target.files?.[0] && readXlsx(event.target.files[0])} /></label><label className="button button-secondary">Adicionar imagem<input type="file" accept="image/*" hidden onChange={(event) => event.target.files?.[0] && addImage(event.target.files[0])} /></label><label className="button button-secondary">Ler log<input type="file" accept=".log,.txt,text/plain" hidden disabled={busy} onChange={(event) => event.target.files?.[0] && readLog(event.target.files[0])} /></label><button className="button button-quiet" onClick={clear}>Limpar</button></div><textarea aria-label="Texto de origem" className="source-editor" value={source} onChange={(event) => changeSource(event.target.value)} placeholder="Cole aqui o conteúdo original do requisito." />{visualEvidence.length > 0 && <div className="visual-evidence"><div><h3>Evidências visuais preservadas</h3><p>As imagens estão disponíveis para conferência. Nenhuma descrição foi criada automaticamente.</p></div><div className="visual-grid">{visualEvidence.map((item) => <figure key={`${item.name}-${item.source}`}><img src={item.source} alt={item.name} /><figcaption>{item.type}: {item.name}</figcaption></figure>)}</div></div>}<div className="source-meta"><span>{blocks} bloco(s) preservado(s)</span><span>{source.length.toLocaleString("pt-BR")} caracteres</span></div><div className="confirmation-box"><label><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /> Revisei a leitura integral do conteúdo apresentado.</label><button className="button button-primary" disabled={!source.trim() || !confirmed || busy} onClick={organize}>Organizar entregas</button></div></section>}
+      {stage === "fonte" && <section className="workspace"><div className="section-heading"><div><p className="eyebrow">Etapa 01</p><h2>Fonte do documento</h2></div><span className="status-badge">Leitura local</span></div><p className="section-lead">Cole o texto original ou carregue um arquivo. Nada é organizado antes da sua confirmação de leitura.</p><div className="import-row"><label className="button button-primary">Ler PDF<input type="file" accept="application/pdf" hidden disabled={busy} onChange={(event) => event.target.files?.[0] && readPdf(event.target.files[0])} /></label><label className="button button-secondary">Ler XLSX<input type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden disabled={busy} onChange={(event) => event.target.files?.[0] && readXlsx(event.target.files[0])} /></label><label className="button button-secondary">Adicionar imagem<input type="file" accept="image/*" hidden onChange={(event) => event.target.files?.[0] && addImage(event.target.files[0])} /></label><label className="button button-secondary">Ler log<input type="file" accept=".log,.txt,text/plain" hidden disabled={busy} onChange={(event) => event.target.files?.[0] && readLog(event.target.files[0])} /></label><button className="button button-quiet" onClick={clear}>Limpar</button></div><textarea aria-label="Texto de origem" className="source-editor" value={source} onChange={(event) => changeSource(event.target.value)} placeholder="Cole aqui o conteúdo original do requisito." />{visualEvidence.length > 0 && <div className="visual-evidence"><div><h3>Evidências visuais preservadas</h3><p>As imagens estão disponíveis para conferência. Nenhuma descrição foi criada automaticamente.</p></div><div className="visual-grid">{visualEvidence.map((item) => <figure key={`${item.name}-${item.source}`}><img src={item.source} alt={item.name} /><figcaption>{item.type}: {item.name}</figcaption></figure>)}</div></div>}<div className="source-meta"><span>{blocks} bloco(s) preservado(s)</span><span>{source.length.toLocaleString("pt-BR")} caracteres</span></div>{pdfSummary && <div className="pdf-summary"><strong>{pdfSummary.readStatus === "concluida" ? "Leitura concluída" : "Documento parcialmente identificado"}</strong><span>{pdfSummary.pageCount} página(s)</span><span>{(pdfSummary.textPages ?? []).length} com texto</span><span>{(pdfSummary.ocrPages ?? []).length} com OCR local</span><span>{(pdfSummary.emptyPages ?? []).length} sem conteúdo</span>{(pdfSummary.lowConfidencePages ?? []).length > 0 && <span>Baixa confiança: {(pdfSummary.lowConfidencePages ?? []).join(", ")}</span>}{(pdfSummary.warnings ?? []).length > 0 && <p>{(pdfSummary.warnings ?? []).length} alerta(s) para revisão manual.</p>}</div>}<div className="confirmation-box"><label><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /> Revisei a leitura integral do conteúdo apresentado.</label><button className="button button-primary" disabled={!source.trim() || !confirmed || busy || pdfReadPartial} onClick={organize}>Organizar entregas</button></div></section>}
 
       {stage === "entregas" && material && <section className="workspace"><div className="section-heading"><div><p className="eyebrow">Etapa 02</p><h2>Organização por entrega</h2></div><span className="status-badge">{material.deliveries.length} entrega(s)</span></div><p className="section-lead">Cada bloco corresponde a uma parte reconhecida na fonte. Conteúdo não reconhecido permanece disponível para revisão.</p><div className="delivery-list">{material.deliveries.map((delivery, index) => <button key={delivery.id} className={`delivery-card ${selectedDelivery === index ? "is-active" : ""}`} onClick={() => setSelectedDelivery(index)}><span>Entrega {index + 1}</span><strong>{delivery.title}</strong><small>{delivery.scenarios.length} cenário(s)</small></button>)}</div><div className="source-preview"><h3>Material preservado da entrega</h3><pre>{currentDelivery?.sourceText}</pre></div><div className="action-row"><button className="button button-secondary" onClick={() => setStage("fonte")}>Voltar à fonte</button><button className="button button-primary" onClick={() => setStage("steps")}>Ver cenários STEP</button></div></section>}
 

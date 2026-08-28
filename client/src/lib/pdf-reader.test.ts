@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { extractPdfEvidence, pdfSourceText, reconstructPdfPageText } from "./pdf-reader";
 
-const { getDocumentMock } = vi.hoisted(() => ({ getDocumentMock: vi.fn() }));
+const { getDocumentMock, recognizePdfPageMock } = vi.hoisted(() => ({ getDocumentMock: vi.fn(), recognizePdfPageMock: vi.fn() }));
 
 vi.mock("pdfjs-dist/legacy/build/pdf.mjs", () => ({ GlobalWorkerOptions: {}, getDocument: getDocumentMock }));
 vi.mock("pdfjs-dist/legacy/build/pdf.worker.min.mjs?url", () => ({ default: "worker.js" }));
+vi.mock("./ocr-reader", () => ({ recognizePdfPage: recognizePdfPageMock }));
 
 describe("reconstructPdfPageText", () => {
   it("preserva quebras entre linhas sem reordenar os fragmentos entregues pelo PDF", () => {
@@ -63,6 +64,33 @@ describe("reconstructPdfPageText", () => {
 });
 
 describe("extractPdfEvidence", () => {
+  it("classifica página sem texto como OCR local e impede leitura como concluída", async () => {
+    recognizePdfPageMock.mockResolvedValueOnce({ text: "Texto reconhecido", confidence: 91, warning: "Conteúdo obtido por OCR local. Conferir a transcrição na imagem original." });
+    const fakeCanvas = { getContext: () => ({}), toDataURL: () => "data:image/jpeg;base64,AA==" } as unknown as HTMLCanvasElement;
+    vi.stubGlobal("document", { createElement: () => fakeCanvas });
+    getDocumentMock.mockReturnValueOnce({
+      promise: Promise.resolve({
+        numPages: 1,
+        getPage: async () => ({
+          getTextContent: async () => ({ items: [] }),
+          getViewport: () => ({ width: 100, height: 100 }),
+          render: () => ({ promise: Promise.resolve() }),
+        }),
+        cleanup: () => undefined,
+      }),
+    });
+
+    const result = await extractPdfEvidence(new File(["pdf"], "escaneado.pdf", { type: "application/pdf" }));
+    expect(result.text).toContain("[Página 1 · OCR local]");
+    expect(result.textPages).toEqual([]);
+    expect(result.ocrPages).toEqual([1]);
+    expect(result.emptyPages).toEqual([]);
+    expect(result.readStatus).toBe("parcial");
+    expect(result.pages[0].imageDataUrl).toContain("data:image");
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   it("preserva texto quando a prévia visual falha", async () => {
     getDocumentMock.mockReturnValueOnce({
       promise: Promise.resolve({

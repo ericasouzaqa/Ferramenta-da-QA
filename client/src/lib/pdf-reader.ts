@@ -8,6 +8,9 @@ export type PdfPageExtraction = {
   page: number;
   text: string;
   imageDataUrl: string;
+  source: "texto" | "ocr" | "sem-conteudo";
+  confidence: "alta" | "media" | "baixa";
+  warnings: string[];
 };
 
 export type PdfExtraction = {
@@ -15,6 +18,12 @@ export type PdfExtraction = {
   pageCount: number;
   hasSearchableText: boolean;
   previewFailures: number;
+  textPages: number[];
+  ocrPages: number[];
+  emptyPages: number[];
+  lowConfidencePages: number[];
+  warnings: string[];
+  readStatus: "concluida" | "parcial";
   pages: PdfPageExtraction[];
 };
 
@@ -31,6 +40,8 @@ type PdfPageLike = {
   getViewport: (params: { scale: number }) => { width: number; height: number };
   render: (params: { canvasContext: CanvasRenderingContext2D; viewport: unknown }) => { promise: Promise<unknown> };
 };
+
+import { recognizePdfPage } from "./ocr-reader";
 
 const MAX_PAGE_PREVIEW_LENGTH = 1_450_000;
 const MIN_RENDER_SCALE = 0.42;
@@ -290,19 +301,41 @@ export async function extractPdfEvidence(file: File): Promise<PdfExtraction> {
   const pageCount = pdfDocument.numPages;
   const pages: PdfPageExtraction[] = [];
   let previewFailures = 0;
+  const warnings: string[] = [];
 
   try {
     for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
       const page = await pdfDocument.getPage(pageNumber) as PdfPageLike;
       const content = await page.getTextContent();
-      const text = reconstructPdfPageText(content.items);
+      const extractedText = reconstructPdfPageText(content.items);
       let imageDataUrl = "";
       try {
         imageDataUrl = await renderPagePreview(page);
       } catch {
         previewFailures += 1;
+        warnings.push(`Página ${pageNumber}: prévia visual não disponível.`);
       }
-      pages.push({ page: pageNumber, text, imageDataUrl });
+
+      let text = extractedText;
+      let source: PdfPageExtraction["source"] = extractedText ? "texto" : "sem-conteudo";
+      let confidence: PdfPageExtraction["confidence"] = extractedText ? "alta" : "baixa";
+      const pageWarnings: string[] = [];
+
+      if (!extractedText && imageDataUrl) {
+        const ocr = await recognizePdfPage(imageDataUrl);
+        text = ocr.text;
+        source = ocr.text ? "ocr" : "sem-conteudo";
+        confidence = ocr.confidence >= 85 ? "media" : "baixa";
+        pageWarnings.push(ocr.warning);
+        warnings.push(`Página ${pageNumber}: ${ocr.warning}`);
+      }
+
+      if (source === "texto" && text.includes("\t")) {
+        pageWarnings.push("Separação tabular reconstruída pela posição do texto. Conferir linhas e colunas na evidência visual.");
+        warnings.push(`Página ${pageNumber}: a separação de tabela precisa de revisão visual.`);
+      }
+      if (!text) pageWarnings.push("Nenhum conteúdo textual identificado nesta página.");
+      pages.push({ page: pageNumber, text, imageDataUrl, source, confidence, warnings: pageWarnings });
     }
   } finally {
     const documentLifecycle = pdfDocument as unknown as { cleanup?: () => void; destroy?: () => Promise<void> };
@@ -310,11 +343,25 @@ export async function extractPdfEvidence(file: File): Promise<PdfExtraction> {
     else if (typeof documentLifecycle.destroy === "function") await documentLifecycle.destroy();
   }
 
+  const textPages = pages.filter((page) => page.source === "texto").map((page) => page.page);
+  const ocrPages = pages.filter((page) => page.source === "ocr").map((page) => page.page);
+  const emptyPages = pages.filter((page) => page.source === "sem-conteudo").map((page) => page.page);
+  const lowConfidencePages = pages.filter((page) => page.confidence === "baixa").map((page) => page.page);
+
   return {
-    text: pages.filter((page) => page.text).map((page) => `[Página ${page.page}]\n${page.text}`).join("\n\n"),
+    text: pages.map((page) => {
+      const origin = page.source === "texto" ? "texto" : page.source === "ocr" ? "OCR local" : "sem conteúdo identificado";
+      return `[Página ${page.page} · ${origin}]${page.text ? `\n${page.text}` : ""}`;
+    }).join("\n\n").trim(),
     pageCount,
-    hasSearchableText: pages.some((page) => Boolean(page.text)),
+    hasSearchableText: textPages.length > 0,
     previewFailures,
+    textPages,
+    ocrPages,
+    emptyPages,
+    lowConfidencePages,
+    warnings,
+    readStatus: ocrPages.length || emptyPages.length || lowConfidencePages.length ? "parcial" : "concluida",
     pages,
   };
 }
