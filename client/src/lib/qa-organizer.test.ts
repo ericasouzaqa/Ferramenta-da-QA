@@ -199,6 +199,54 @@ describe("organizeQaMaterial", () => {
     expect(result?.scenarios[1].expectedResult).toEqual(["Exibir erro."]);
   });
 
+  it("classifica um STEP completo quando há funcionalidade, passos, resultado e origem", () => {
+    const result = organizeQaMaterial([
+      "STEP 1",
+      "Título: Login",
+      "Passos",
+      "Informar usuário.",
+      "Resultado esperado",
+      "Exibir acesso.",
+    ].join("\n"));
+    expect(result?.scenarios[0].quality).toBe("completo");
+    expect(result?.scenarios[0].gapDetails).toEqual([
+      { text: "Pré-condições não informadas nos artefatos.", category: "dados" },
+    ]);
+  });
+
+  it("classifica um STEP incompleto como parcial e categoriza os GAPS", () => {
+    const result = organizeQaMaterial([
+      "STEP 1",
+      "Título: Login",
+      "Passos",
+      "Informar usuário.",
+    ].join("\n"));
+    expect(result?.scenarios[0].quality).toBe("parcial");
+    expect(result?.scenarios[0].gapDetails).toEqual([
+      { text: "Pré-condições não informadas nos artefatos.", category: "dados" },
+      { text: "Resultado esperado não informado nos artefatos.", category: "funcional" },
+    ]);
+  });
+
+  it("classifica conflito explícito como inconsistente sem bloquear a geração", () => {
+    const result = organizeQaMaterial([
+      "STEP 1",
+      "Título: Login",
+      "Passos",
+      "Informar usuário.",
+      "Resultado esperado",
+      "Exibir acesso.",
+      "Gaps e indefinições:",
+      "Conflito entre regras de negócio.",
+    ].join("\n"));
+    expect(result?.scenarios[0].quality).toBe("inconsistente");
+    expect(result?.scenarios[0].status).toBe("a confirmar");
+    expect(result?.scenarios[0].gapDetails).toContainEqual({
+      text: "Conflito entre regras de negócio.",
+      category: "funcional",
+    });
+  });
+
   it("mantém ações agrupadas quando não há evidência de comportamentos distintos", () => {
     const result = organizeQaMaterial([
       "STEP 1",

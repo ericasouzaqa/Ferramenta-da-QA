@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.3.0] — 2026-08-29
+
+### Adicionado
+
+- Classificação informativa dos cenários como `completo`, `parcial` ou `inconsistente`.
+- Categorização de GAPS em funcional, critério, dados, fluxo ou técnico.
+- Rastreabilidade por funcionalidade, pré-condições, dados, passos, resultado esperado e GAPS.
+- Extração opcional de dados somente quando identificados explicitamente na fonte.
+- Testes adicionais para qualidade, GAPS, dados e rastreabilidade.
+
+### Melhorado
+
+- A validação literal passou a apresentar correspondência por campo, mantendo a fonte original intacta.
+- Conflitos explícitos permanecem gerados para revisão, sem bloquear a geração nem inventar uma solução.
+- A documentação passou a explicar as classificações, categorias, limitações e o funcionamento sem IA obrigatória.
+
+### Preservado
+
+- Processamento local de texto, PDF, OCR, XLSX, imagens e logs.
+- Aplicação Web, Electron/Desktop, exportações, CI/CD e GitHub Pages.
+- Mensagens, valores, campos, status, termos técnicos e regras presentes nos artefatos.
+
 ## [1.2.0] — 2026-08-29
 
 ### Adicionado
@@ -21,4 +43,5 @@
 - Entrada manual, PDF, OCR, XLSX, imagens, logs, exportações, aplicação Web e Electron/Desktop.
 - Fonte original, termos técnicos, mensagens, valores, status e gaps sem preenchimento presumido.
 
+[1.3.0]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.3.0
 [1.2.0]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.2.0

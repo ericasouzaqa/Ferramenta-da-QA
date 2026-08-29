@@ -1,12 +1,32 @@
 import { validateScenarioAgainstSource } from "./qa-validation";
 
+export type GapCategory = "funcional" | "critério" | "dados" | "fluxo" | "técnico";
+
+export type ClassifiedGap = {
+  text: string;
+  category: GapCategory;
+};
+
+export type StepQuality = "completo" | "parcial" | "inconsistente";
+
 export type GeneratedScenario = {
   id: string;
   title: string;
   preconditions: string[];
+  data?: string[];
   steps: string[];
   expectedResult: string[];
   gaps: string[];
+  gapDetails?: ClassifiedGap[];
+  traceability?: {
+    functionality: boolean;
+    preconditions: boolean[];
+    steps: boolean[];
+    expectedResult: boolean[];
+    data: boolean[];
+    gaps: boolean[];
+  };
+  quality?: StepQuality;
   gherkin: string;
   status: "pronto" | "a confirmar";
   reference: string;
@@ -31,8 +51,10 @@ export type RequirementStructure = {
   technicalConstraints: string[];
   flows: string[];
   exceptions: string[];
+  data?: string[];
   technicalElements: string[];
   gaps: string[];
+  gapDetails?: ClassifiedGap[];
 };
 
 export type OrganizedQaMaterial = {
@@ -63,8 +85,27 @@ const STRUCTURE_HEADERS = {
   flows: /^(?:fluxos?|fluxo principal|fluxo alternativo)\s*:??$/i,
   exceptions: /^(?:exceções?|excepções?)\s*:??$/i,
   technicalElements: /^(?:elementos?|detalhes?) técnicos?\s*:??$/i,
+  data: /^(?:dados?|dados necessários?)\s*:??$/i,
 };
 const ALL_STRUCTURE_HEADERS = [...Object.values(SECTION_HEADERS), ...Object.values(STRUCTURE_HEADERS)];
+
+function classifyGap(text: string): GapCategory {
+  if (/critério|aceite/i.test(text)) return "critério";
+  if (/pré-condiç|dados?|campo|valor/i.test(text)) return "dados";
+  if (/fluxo|exceção|caminho/i.test(text)) return "fluxo";
+  if (/técnic|rastreab|correspondência literal|origem/i.test(text)) return "técnico";
+  return "funcional";
+}
+
+function classifyGaps(gaps: string[]): ClassifiedGap[] {
+  return gaps.map((text) => ({ text, category: classifyGap(text) }));
+}
+
+function qualityFor(gaps: string[], inconsistent = false): StepQuality {
+  if (inconsistent) return "inconsistente";
+  const materialGaps = gaps.filter((gap) => !/^Pré-condições não informadas nos artefatos\.$/i.test(gap));
+  return materialGaps.length ? "parcial" : "completo";
+}
 const DELIVERY_HEADER = /^(?:[⭐*•]\s*)?(?:(?:SC[- ]\d+)|(?:PBI\s*\d+)|(?:PBA\s*\d+)|(?:Item\s*[A-Za-z0-9._/-]+))\b.*$/i;
 const REFERENCE = /\b(?:(?:SC[- ]\d+)|(?:item|pbi|pba|card)\s*(?:[#:]|-)?\s*(?=[A-Za-z0-9._/-]*\d)[A-Za-z0-9][A-Za-z0-9._/-]*)(?![A-Za-z0-9])/i;
 const REFERENCE_LINE = /^(?:(?:SC[- ]\d+)|(?:item|pbi|pba|card)\s*(?:[#:]|-)?\s*(?=[A-Za-z0-9._/-]*\d)[A-Za-z0-9][A-Za-z0-9._/-]*)(?![A-Za-z0-9])$/i;
@@ -148,8 +189,10 @@ function extractRequirementStructure(lines: string[]): RequirementStructure {
     technicalConstraints: structure(STRUCTURE_HEADERS.technicalConstraints),
     flows: structure(STRUCTURE_HEADERS.flows),
     exceptions: structure(STRUCTURE_HEADERS.exceptions),
+    data: structure(STRUCTURE_HEADERS.data),
     technicalElements: structure(STRUCTURE_HEADERS.technicalElements),
     gaps: [...gaps, ...inferredGaps],
+    gapDetails: classifyGaps([...gaps, ...inferredGaps]),
   };
 }
 
@@ -238,6 +281,7 @@ function buildScenarios(lines: string[], deliveryId: string, allowSemanticSplit 
   const baseTitle = findTitle(lines);
   const title = behaviorLabel ? `${baseTitle} — ${behaviorLabel}` : baseTitle;
   const preconditions = extractSection(lines, SECTION_HEADERS.preconditions);
+  const data = extractSection(lines, STRUCTURE_HEADERS.data);
   const sectionSteps = extractSection(lines, SECTION_HEADERS.steps);
   const numberedSteps = extractNumberedSteps(lines);
   const allSteps = sectionSteps.length ? sectionSteps : numberedSteps.length ? numberedSteps : extractExplicitActions(lines);
@@ -262,9 +306,12 @@ function buildScenarios(lines: string[], deliveryId: string, allowSemanticSplit 
       id: `${deliveryId}-scenario-${index + 1}`,
       title: chunks.length > 1 ? `${title} (continuação ${index + 1})` : title,
       preconditions,
+      data,
       steps,
       expectedResult,
       gaps,
+      gapDetails: classifyGaps(gaps),
+      quality: qualityFor(gaps),
       gherkin: gherkin(title, preconditions, steps, expectedResult),
       status: gaps.length ? "a confirmar" : "pronto",
       reference: findReference(lines),
@@ -310,9 +357,14 @@ export function organizeQaMaterial(source: string): OrganizedQaMaterial | null {
     scenarios: delivery.scenarios.map((scenario) => {
       const validation = validateScenarioAgainstSource(delivery.sourceText, scenario);
       const gaps = Array.from(new Set([...scenario.gaps, ...validation.warnings]));
+      const inconsistent = validation.warnings.some((warning) => /sem correspondência literal|conflito|sem origem/i.test(warning))
+        || gaps.some((gap) => /conflito|sem origem/i.test(gap));
       return {
         ...scenario,
         gaps,
+        gapDetails: classifyGaps(gaps),
+        traceability: validation.traceability,
+        quality: qualityFor(gaps, inconsistent),
         gherkin: gaps.length ? "" : scenario.gherkin,
         status: gaps.length ? "a confirmar" as const : scenario.status,
       };

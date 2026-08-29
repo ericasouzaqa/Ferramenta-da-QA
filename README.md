@@ -16,7 +16,7 @@ O executável portátil para Windows pode ser baixado na [release mais recente d
 
 Na etapa **Fonte**, a ferramenta aceita texto, PDF, XLSX, TXT, imagens e logs. O conteúdo importado permanece disponível para conferência. PDFs e imagens podem passar por leitura local com OCR quando aplicável; materiais ambíguos ou ilegíveis são preservados e sinalizados para revisão, em vez de gerar informação presumida.
 
-Na etapa **Organização por entrega**, os blocos são separados por marcadores `STEP`, títulos ou referências explícitas. Na etapa **Cenários STEP**, a aplicação organiza referência, pré-condições, passos, resultado esperado e GAPs. Na etapa **Gherkin**, a saída só é criada quando os campos necessários estão explicitamente disponíveis na fonte. Na etapa **Exportação**, é possível copiar STEP ou Gherkin e baixar CSV.
+Na etapa **Organização por entrega**, os blocos são separados por marcadores `STEP`, títulos ou referências explícitas. Na etapa **Cenários STEP**, a aplicação organiza referência, pré-condições, dados explícitos, passos, resultado esperado e GAPs. Cada cenário recebe uma classificação informativa: **completo**, **parcial** ou **inconsistente**. Os GAPs são categorizados como funcional, critério, dados, fluxo ou técnico, sem criar soluções para ausências. A rastreabilidade registra a correspondência da funcionalidade, pré-condições, dados, passos, resultado e GAPs com a fonte original. Na etapa **Gherkin**, a saída só é criada quando os campos necessários estão explicitamente disponíveis na fonte. Na etapa **Exportação**, é possível copiar STEP ou Gherkin e baixar CSV.
 
 Os dados são mantidos localmente no perfil do navegador ou do aplicativo. Não existe sincronização entre máquinas, banco de dados, conta de usuário ou cópia automática para a nuvem.
 
@@ -55,15 +55,15 @@ O arquivo é criado em `release/Ferramenta-da-QA-<versão>-portable.exe`. O buil
 
 O workflow `.github/workflows/release-windows.yml` executa a verificação de tipos, os testes, o build do Electron e publica o `.exe` na área de Releases quando uma tag no formato `v*` é enviada ao GitHub. O workflow `.github/workflows/deploy-pages.yml` publica a versão web na branch `main`, e `.github/workflows/quality.yml` mantém a validação contínua em pushes e pull requests.
 
-Para publicar uma nova versão, atualize o campo `version` do `package.json`, faça commit e envie a tag correspondente:
+Para publicar uma nova versão, atualize o campo `version` do `package.json`, atualize o `CHANGELOG.md`, faça commit e envie a tag correspondente:
 
 ```bash
-git tag v1.2.0
-git push origin v1.2.0
+git tag v1.3.0
+git push origin v1.3.0
 ```
 
 ## Estrutura essencial
 
 A interface principal fica em `client/src/pages/Home.tsx`. As regras de organização ficam em `client/src/lib/qa-organizer.ts`, e os leitores de PDF, planilhas, evidências e OCR ficam em `client/src/lib/`. A janela desktop e a ponte segura do Electron ficam em `desktop/`. O empacotamento do Windows é definido em `electron-builder.yml`.
 
-Antes de aceitar alterações, execute `pnpm check`, `pnpm test`, `pnpm build` e `pnpm desktop:win`. A execução funcional do `.exe` deve ser conferida em uma máquina Windows real.
+Antes de aceitar alterações, execute `pnpm check`, `pnpm test`, `pnpm build` e `pnpm desktop:win`. A execução funcional do `.exe` deve ser conferida em uma máquina Windows real. A ferramenta não exige IA, API, backend, banco de dados ou conexão externa para organizar os documentos. Quando a fonte não informar algo, a aplicação registra um GAP e mantém o conteúdo original para auditoria.

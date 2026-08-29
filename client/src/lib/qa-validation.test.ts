@@ -15,7 +15,18 @@ describe("validateScenarioAgainstSource", () => {
       gherkin: "",
       status: "a confirmar",
     });
-    expect(result).toEqual({ warnings: [], valid: true });
+    expect(result).toEqual({
+      warnings: [],
+      valid: true,
+      traceability: {
+        functionality: true,
+        preconditions: [],
+        steps: [true],
+        expectedResult: [true],
+        data: [],
+        gaps: [],
+      },
+    });
   });
 
   it("registra um gap quando um valor não possui correspondência na fonte", () => {
@@ -32,12 +43,14 @@ describe("validateScenarioAgainstSource", () => {
     });
     expect(result.valid).toBe(false);
     expect(result.warnings).toEqual(["Pré-condição sem correspondência literal na fonte."]);
+    expect(result.traceability.preconditions).toEqual([false]);
+    expect(result.traceability.steps).toEqual([true]);
   });
 
-  it("não considera o sufixo de continuação como conteúdo inventado", () => {
+  it("não considera o sufixo de continuação ou fluxo como conteúdo inventado", () => {
     const result = validateScenarioAgainstSource("Título: Fluxo", {
       id: "delivery-1-scenario-2",
-      title: "Fluxo (continuação 2)",
+      title: "Fluxo — Fluxo principal (continuação 2)",
       reference: "Referência não informada nos artefatos.",
       preconditions: [],
       steps: [],
@@ -47,5 +60,24 @@ describe("validateScenarioAgainstSource", () => {
       status: "a confirmar",
     });
     expect(result.valid).toBe(true);
+    expect(result.traceability.functionality).toBe(true);
+  });
+
+  it("rastreia dados e gaps sem inventar correspondência", () => {
+    const result = validateScenarioAgainstSource("Título: Pedido\nDados\nCPF informado.\nGaps e indefinições:\nMensagem não definida.", {
+      id: "delivery-1-scenario-1",
+      title: "Pedido",
+      reference: "Referência não informada nos artefatos.",
+      preconditions: [],
+      data: ["CPF informado."],
+      steps: [],
+      expectedResult: [],
+      gaps: ["Mensagem não definida.", "Resultado esperado não informado nos artefatos."],
+      gherkin: "",
+      status: "a confirmar",
+    });
+    expect(result.valid).toBe(true);
+    expect(result.traceability.data).toEqual([true]);
+    expect(result.traceability.gaps).toEqual([true, false]);
   });
 });
