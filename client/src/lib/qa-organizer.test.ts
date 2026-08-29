@@ -129,4 +129,87 @@ describe("organizeQaMaterial", () => {
     expect(result?.deliveries[0].sourceText).toBe(source);
     expect(result?.scenarios).toEqual([]);
   });
+
+  it("estrutura o requisito sem substituir a fonte original", () => {
+    const source = [
+      "STEP 1",
+      "Título: Cadastro",
+      "Como uma pessoa administradora",
+      "Eu quero cadastrar um usuário",
+      "Para que o acesso seja controlado",
+      "Critérios de aceite",
+      "Exibir o usuário cadastrado.",
+      "Regras de negócio",
+      "Permitir somente um cadastro por e-mail.",
+      "Restrições técnicas",
+      "Manter o formato do identificador.",
+      "Fluxo principal",
+      "Cadastrar os dados válidos.",
+      "Exceções",
+      "Bloquear dados inválidos.",
+      "Elementos técnicos",
+      "Campo e-mail.",
+    ].join("\n");
+    const result = organizeQaMaterial(source);
+    const requirement = result?.requirements[0];
+    expect(result?.deliveries[0].sourceText).toBe(source);
+    expect(requirement?.userStory.asA).toEqual(["uma pessoa administradora"]);
+    expect(requirement?.userStory.iWant).toEqual(["cadastrar um usuário"]);
+    expect(requirement?.userStory.soThat).toEqual(["o acesso seja controlado"]);
+    expect(requirement?.acceptanceCriteria).toEqual(["Exibir o usuário cadastrado."]);
+    expect(requirement?.businessRules).toEqual(["Permitir somente um cadastro por e-mail."]);
+    expect(requirement?.technicalConstraints).toEqual(["Manter o formato do identificador."]);
+    expect(requirement?.flows).toEqual(["Cadastrar os dados válidos."]);
+    expect(requirement?.exceptions).toEqual(["Bloquear dados inválidos."]);
+    expect(requirement?.technicalElements).toEqual(["Campo e-mail."]);
+    expect(requirement?.gaps).toEqual([]);
+  });
+
+  it("registra gaps da estrutura quando a fonte não informa história ou critérios", () => {
+    const result = organizeQaMaterial("STEP 1\nTítulo: Consulta\nPassos\nConsultar.");
+    expect(result?.requirements[0].gaps).toEqual([
+      "História de usuário não informada nos artefatos.",
+      "Critérios de aceitação não informados nos artefatos.",
+    ]);
+  });
+
+  it("separa fluxo principal e exceção quando os cabeçalhos são explícitos", () => {
+    const result = organizeQaMaterial([
+      "STEP 1",
+      "Título: Cadastro",
+      "Pré-condições",
+      "Possuir acesso.",
+      "Fluxo principal",
+      "Passos",
+      "Informar dados válidos.",
+      "Resultado esperado",
+      "Exibir confirmação.",
+      "Exceção",
+      "Passos",
+      "Informar dados inválidos.",
+      "Resultado esperado",
+      "Exibir erro.",
+    ].join("\n"));
+    expect(result?.scenarios).toHaveLength(2);
+    expect(result?.scenarios[0].title).toBe("Cadastro — Fluxo principal");
+    expect(result?.scenarios[0].steps).toEqual(["Informar dados válidos."]);
+    expect(result?.scenarios[0].expectedResult).toEqual(["Exibir confirmação."]);
+    expect(result?.scenarios[1].title).toBe("Cadastro — Exceção");
+    expect(result?.scenarios[1].steps).toEqual(["Informar dados inválidos."]);
+    expect(result?.scenarios[1].expectedResult).toEqual(["Exibir erro."]);
+  });
+
+  it("mantém ações agrupadas quando não há evidência de comportamentos distintos", () => {
+    const result = organizeQaMaterial([
+      "STEP 1",
+      "Título: Cadastro",
+      "Passos",
+      "Informar dados.",
+      "Salvar cadastro.",
+      "Resultado esperado",
+      "Exibir confirmação.",
+    ].join("\n"));
+    expect(result?.scenarios).toHaveLength(1);
+    expect(result?.scenarios[0].steps).toEqual(["Informar dados.", "Salvar cadastro."]);
+  });
 });

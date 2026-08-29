@@ -58,8 +58,8 @@ O workflow `.github/workflows/release-windows.yml` executa a verificação de ti
 Para publicar uma nova versão, atualize o campo `version` do `package.json`, faça commit e envie a tag correspondente:
 
 ```bash
-git tag v1.1.1
-git push origin v1.1.1
+git tag v1.2.0
+git push origin v1.2.0
 ```
 
 ## Estrutura essencial
