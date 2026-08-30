@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.4.0] — 2026-08-30
+
+### Adicionado
+
+- Módulo único de Auditoria da Qualidade da Análise integrado à etapa de Cenários STEP.
+- Classificação determinística da qualidade do requisito como alta, média ou baixa, sempre acompanhada dos motivos.
+- Consolidação de qualidade dos STEPs, cobertura documental, GAPS, rastreabilidade, pontos de atenção e resumo explicável.
+- Indicadores de cobertura limitada ao documento analisado, sem afirmar cobertura do sistema real.
+- Testes automatizados para indicadores, classificação geral, GAPS deduplicados, rastreabilidade e resumo.
+
+### Preservado
+
+- Fonte original e `sourceText`, processamento local e funcionamento sem IA obrigatória.
+- PDF, OCR, XLSX, texto manual, exportações, Web, Electron/Desktop, CI/CD e GitHub Pages.
+- Arquitetura, dependências e contratos funcionais existentes.
+
 ## [1.3.0] — 2026-08-29
 
 ### Adicionado
@@ -43,5 +59,6 @@
 - Entrada manual, PDF, OCR, XLSX, imagens, logs, exportações, aplicação Web e Electron/Desktop.
 - Fonte original, termos técnicos, mensagens, valores, status e gaps sem preenchimento presumido.
 
+[1.4.0]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.4.0
 [1.3.0]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.3.0
 [1.2.0]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.2.0

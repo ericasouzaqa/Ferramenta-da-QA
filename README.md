@@ -16,7 +16,7 @@ O executável portátil para Windows pode ser baixado na [release mais recente d
 
 Na etapa **Fonte**, a ferramenta aceita texto, PDF, XLSX, TXT, imagens e logs. O conteúdo importado permanece disponível para conferência. PDFs e imagens podem passar por leitura local com OCR quando aplicável; materiais ambíguos ou ilegíveis são preservados e sinalizados para revisão, em vez de gerar informação presumida.
 
-Na etapa **Organização por entrega**, os blocos são separados por marcadores `STEP`, títulos ou referências explícitas. Na etapa **Cenários STEP**, a aplicação organiza referência, pré-condições, dados explícitos, passos, resultado esperado e GAPs. Cada cenário recebe uma classificação informativa: **completo**, **parcial** ou **inconsistente**. Os GAPs são categorizados como funcional, critério, dados, fluxo ou técnico, sem criar soluções para ausências. A rastreabilidade registra a correspondência da funcionalidade, pré-condições, dados, passos, resultado e GAPs com a fonte original. Na etapa **Gherkin**, a saída só é criada quando os campos necessários estão explicitamente disponíveis na fonte. Na etapa **Exportação**, é possível copiar STEP ou Gherkin e baixar CSV.
+Na etapa **Organização por entrega**, os blocos são separados por marcadores `STEP`, títulos ou referências explícitas. Na etapa **Cenários STEP**, a aplicação organiza referência, pré-condições, dados explícitos, passos, resultado esperado e GAPs. Cada cenário recebe uma classificação informativa: **completo**, **parcial** ou **inconsistente**. Os GAPs são categorizados como funcional, critério, dados, fluxo ou técnico, sem criar soluções para ausências. A rastreabilidade registra a correspondência da funcionalidade, pré-condições, dados, passos, resultado e GAPs com a fonte original. A etapa também exibe a **Auditoria da Qualidade da Análise**, que consolida a qualidade do requisito, contagens dos STEPs, cobertura documental, GAPS, rastreabilidade, pontos de atenção e um resumo explicável. Na etapa **Gherkin**, a saída só é criada quando os campos necessários estão explicitamente disponíveis na fonte. Na etapa **Exportação**, é possível copiar STEP ou Gherkin e baixar CSV.
 
 Os dados são mantidos localmente no perfil do navegador ou do aplicativo. Não existe sincronização entre máquinas, banco de dados, conta de usuário ou cópia automática para a nuvem.
 
@@ -58,8 +58,8 @@ O workflow `.github/workflows/release-windows.yml` executa a verificação de ti
 Para publicar uma nova versão, atualize o campo `version` do `package.json`, atualize o `CHANGELOG.md`, faça commit e envie a tag correspondente:
 
 ```bash
-git tag v1.3.0
-git push origin v1.3.0
+git tag v1.4.0
+git push origin v1.4.0
 ```
 
 ## Estrutura essencial
