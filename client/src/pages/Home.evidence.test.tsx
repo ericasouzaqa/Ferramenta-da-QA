@@ -46,13 +46,13 @@ describe("fluxo documental da Ferramenta da QA", () => {
     vi.restoreAllMocks();
   });
 
-  it("exibe somente as cinco etapas do fluxo principal", () => {
+  it("exibe somente as três etapas do fluxo principal", () => {
     render(<Home />);
     expect(screen.getByRole("button", { name: /Fonte/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Entregas/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Cenários STEP/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Gherkin/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Exportação/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Gherkin/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Exportação/ })).toBeNull();
     expect(screen.queryByText(/Aplicativo|Planilha|Cards de bug|Triagem/)).toBeNull();
   });
 
@@ -67,7 +67,7 @@ describe("fluxo documental da Ferramenta da QA", () => {
     expect(toastMock.error).not.toHaveBeenCalled();
   });
 
-  it("preserva STEP, referência, seções e Gherkin quando a fonte está completa", async () => {
+  it("preserva STEP, referência, seções e auditoria quando a fonte está completa", async () => {
     const user = userEvent.setup();
     render(<Home />);
     await user.type(screen.getByLabelText("Texto de origem"), [
@@ -89,8 +89,8 @@ describe("fluxo documental da Ferramenta da QA", () => {
     expect(screen.getByText("Ativar campanha")).toBeTruthy();
     expect(screen.getByText("Referência: Item 1")).toBeTruthy();
     expect(screen.getByText("Clicar em ativar.")).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: "Ver Gherkin" }));
-    expect(screen.getByText(/Funcionalidade: Ativar campanha/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Copiar todos os STEPs" })).toBeTruthy();
+    expect(screen.getByLabelText("Auditoria da qualidade")).toBeTruthy();
   });
 
   it("registra gaps e não cria comportamento ausente", async () => {
@@ -137,17 +137,9 @@ describe("fluxo documental da Ferramenta da QA", () => {
     expect(source.value).toContain("ERROR 500");
   });
 
-  it("copia STEP e exporta CSV sem integração externa", async () => {
+  it("copia um STEP e todos os STEPs diretamente na etapa de cenários", async () => {
     const user = userEvent.setup();
     const writeText = vi.fn().mockResolvedValue(undefined);
-    const NativeBlob = globalThis.Blob;
-    let csvPart = "";
-    vi.stubGlobal("Blob", class extends NativeBlob {
-      constructor(parts?: BlobPart[], options?: BlobPropertyBag) {
-        csvPart = String(parts?.[0] ?? "");
-        super(parts, options);
-      }
-    });
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     render(<Home />);
     await user.type(screen.getByLabelText("Texto de origem"), ["STEP 1", "Título: Cadastro", "Item 1", "Pré-condições", "Possuir acesso.", "Passos", "Abrir tela.", "Resultado esperado", "Exibir tela."].join("\n"));
@@ -155,15 +147,10 @@ describe("fluxo documental da Ferramenta da QA", () => {
     await user.click(screen.getByRole("button", { name: "Organizar entregas" }));
     await user.click(screen.getByRole("button", { name: "Ver cenários STEP" }));
     await user.click(screen.getByRole("button", { name: "Copiar STEP" }));
-    await user.click(screen.getByRole("button", { name: "Ver Gherkin" }));
-    await user.click(screen.getByRole("button", { name: "Ir para exportação" }));
-    await user.click(await screen.findByRole("button", { name: /Baixar CSV/i }));
+    await user.click(screen.getByRole("button", { name: "Copiar todos os STEPs" }));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("STEP 1"));
-    expect(csvPart).toContain("Título");
-    expect(csvPart).toContain("Cadastro");
-    expect(csvPart).toContain("Item 1");
-    expect(csvPart).toContain("Abrir tela.");
-    expect(csvPart).toContain("Exibir tela.");
-    expect(URL.createObjectURL).toHaveBeenCalled();
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Cadastro"));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Abrir tela."));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Exibir tela."));
   });
 });

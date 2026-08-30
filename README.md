@@ -2,7 +2,7 @@
 
 Aplicação local para preservar documentos, separar entregas e preparar cenários de teste. O fluxo mantido é:
 
-> **Fonte → Organização por entrega → Cenários STEP → Gherkin → Exportação**
+> **Fonte → Organização por entrega → Cenários STEP**
 
 A aplicação funciona como site estático e como aplicativo desktop portátil para Windows. Não exige conta, banco de dados, backend ou serviço externo obrigatório.
 
@@ -16,7 +16,7 @@ O executável portátil para Windows pode ser baixado na [release mais recente d
 
 Na etapa **Fonte**, a ferramenta aceita texto, PDF, XLSX, TXT, imagens e logs. O conteúdo importado permanece disponível para conferência. PDFs e imagens podem passar por leitura local com OCR quando aplicável; materiais ambíguos ou ilegíveis são preservados e sinalizados para revisão, em vez de gerar informação presumida.
 
-Na etapa **Organização por entrega**, os blocos são separados por marcadores `STEP`, títulos ou referências explícitas. Na etapa **Cenários STEP**, a aplicação organiza referência, pré-condições, dados explícitos, passos, resultado esperado e GAPs. Cada cenário recebe uma classificação informativa: **completo**, **parcial** ou **inconsistente**. Os GAPs são categorizados como funcional, critério, dados, fluxo ou técnico, sem criar soluções para ausências. A rastreabilidade registra a correspondência da funcionalidade, pré-condições, dados, passos, resultado e GAPs com a fonte original. A etapa também exibe a **Auditoria da Qualidade da Análise**, que consolida a qualidade do requisito, contagens dos STEPs, cobertura documental, GAPS, rastreabilidade, pontos de atenção e um resumo explicável. Na etapa **Gherkin**, a saída só é criada quando os campos necessários estão explicitamente disponíveis na fonte. Na etapa **Exportação**, é possível copiar STEP ou Gherkin e baixar CSV.
+Na etapa **Organização por entrega**, os blocos são separados por marcadores `STEP`, títulos ou referências explícitas. Quando o documento apresenta múltiplas histórias ou requisitos identificados como História, User Story, RF, Requisito, PBI, Item ou Entrega, cada item é organizado separadamente e recebe somente os seus próprios STEPs. Na etapa **Cenários STEP**, a aplicação organiza referência, história/requisito, origem, página quando disponível, trecho, pré-condições, dados explícitos, passos, resultado esperado e GAPs. Cada cenário recebe uma classificação informativa: **completo**, **parcial** ou **inconsistente**. Os GAPs são categorizados como funcional, critério, dados, fluxo ou técnico, sem criar soluções para ausências. A rastreabilidade registra a correspondência da funcionalidade, história, pré-condições, dados, passos, resultado e GAPs com a fonte original. A etapa também exibe a **Auditoria da Qualidade da Análise**, que consolida a qualidade do requisito, contagens dos STEPs, cobertura documental, GAPS, rastreabilidade, pontos de atenção e um resumo explicável. Os STEPs podem ser copiados individualmente ou em conjunto diretamente nessa etapa, prontos para colar no YouTrack ou em outra ferramenta. Gherkin e CSV não fazem parte da interface atual.
 
 Os dados são mantidos localmente no perfil do navegador ou do aplicativo. Não existe sincronização entre máquinas, banco de dados, conta de usuário ou cópia automática para a nuvem.
 
@@ -58,8 +58,8 @@ O workflow `.github/workflows/release-windows.yml` executa a verificação de ti
 Para publicar uma nova versão, atualize o campo `version` do `package.json`, atualize o `CHANGELOG.md`, faça commit e envie a tag correspondente:
 
 ```bash
-git tag v1.4.0
-git push origin v1.4.0
+git tag v1.5.0
+git push origin v1.5.0
 ```
 
 ## Estrutura essencial

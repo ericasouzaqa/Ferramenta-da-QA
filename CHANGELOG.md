@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.5.0] — 2026-08-30
+
+### Melhorado
+
+- Organização derivada por história ou requisito encontrado no documento, reconhecendo História, User Story, RF, Requisito, PBI, Item e Entrega quando explicitamente identificados.
+- Vínculo de cada STEP à história/requisito correto, com origem, página quando disponível e trecho preservado.
+- Saída copiada simplificada para revisão manual, com passos, resultado esperado, referência e GAPS, sem pré-condições ou Gherkin.
+- Interface mantida no fluxo Fonte → Entregas → Cenários STEP, com cópia individual e cópia de todos os STEPs.
+- Apresentação de histórias/requisitos identificados e estilos para evitar cortes e perda visual de conteúdo longo.
+
+### Preservado
+
+- Fonte original e `sourceText`, PDF/OCR, XLSX, texto manual, auditoria, GAPS, rastreabilidade, Web, Electron/Desktop, dependências e funcionamento sem IA obrigatória.
+- Nenhuma informação é completada por suposição; ausência de evidência permanece como GAP.
+
+
 ## [1.4.0] — 2026-08-30
 
 ### Adicionado
@@ -59,6 +75,7 @@
 - Entrada manual, PDF, OCR, XLSX, imagens, logs, exportações, aplicação Web e Electron/Desktop.
 - Fonte original, termos técnicos, mensagens, valores, status e gaps sem preenchimento presumido.
 
+[1.5.0]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.5.0
 [1.4.0]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.4.0
 [1.3.0]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.3.0
 [1.2.0]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.2.0

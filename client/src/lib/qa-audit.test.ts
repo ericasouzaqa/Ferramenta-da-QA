@@ -62,7 +62,7 @@ describe("buildQualityAudit", () => {
       expect.objectContaining({
         category: "funcional",
         description: "Resultado esperado não definido.",
-        origin: expect.arrayContaining(["delivery-1/delivery-1-scenario-1"]),
+        origin: expect.arrayContaining(["delivery-1/delivery-1-story-1-scenario-1"]),
       }),
     ]));
     expect(audit.traceability.percentage).toBe(0);

@@ -9,6 +9,20 @@ export type ClassifiedGap = {
 
 export type StepQuality = "completo" | "parcial" | "inconsistente";
 
+export type StepOrigin = {
+  storyTitle: string;
+  page?: number;
+  excerpt: string;
+};
+
+export type UserStoryRequirement = {
+  id: string;
+  title: string;
+  sourceText: string;
+  requirement: RequirementStructure;
+  scenarioIds: string[];
+};
+
 export type GeneratedScenario = {
   id: string;
   title: string;
@@ -27,6 +41,8 @@ export type GeneratedScenario = {
     gaps: boolean[];
   };
   quality?: StepQuality;
+  storyTitle?: string;
+  origin?: StepOrigin;
   gherkin: string;
   status: "pronto" | "a confirmar";
   reference: string;
@@ -38,6 +54,7 @@ export type Delivery = {
   sourceText: string;
   scenarios: GeneratedScenario[];
   requirement: RequirementStructure;
+  stories?: UserStoryRequirement[];
 };
 
 export type RequirementStructure = {
@@ -74,6 +91,7 @@ const SECTION_HEADERS = {
   gaps: /^gaps?\s+e\s+indefinições\s*:??$/i,
 };
 const TITLE_HEADER = /^(?:título|titulo)\s*:\s*(.*)$/i;
+const STORY_TITLE_HEADER = /^(?:história|historia|user story|rf|requisito|pbi|entrega)\s*(?:[#:.\-]\s*)?(.+)$/i;
 const USER_STORY_HEADERS = {
   asA: /^(?:como|como um|como uma)\s*:?\s*(.*)$/i,
   iWant: /^(?:eu quero|quero)\s*:?\s*(.*)$/i,
@@ -118,6 +136,23 @@ function splitLines(source: string) {
   return source.replaceAll("\r", "").split("\n");
 }
 
+function splitExplicitStories(lines: string[]) {
+  const starts = lines
+    .map((line, index) => ({ line: cleanLine(line), index }))
+    .filter(({ line }) => STORY_TITLE_HEADER.test(line) && !TITLE_HEADER.test(line) && !REFERENCE_LINE.test(line));
+  if (starts.length < 2) return [];
+  return starts.map(({ index }, storyIndex) => lines.slice(index, starts[storyIndex + 1]?.index ?? lines.length));
+}
+
+function sourcePage(lines: string[]) {
+  const page = lines.map(cleanLine).map((line) => line.match(/^\[Página\s+(\d+)\]/i)?.[1]).find(Boolean);
+  return page ? Number(page) : undefined;
+}
+
+function sourceExcerpt(lines: string[]) {
+  return lines.map(cleanLine).filter(Boolean).join(" ").slice(0, 240);
+}
+
 function splitDeliveries(lines: string[]) {
   const groups: string[][] = [];
   let current: string[] = [];
@@ -142,6 +177,8 @@ function findTitle(lines: string[]) {
   const cleaned = lines.map(cleanLine);
   const explicit = cleaned.map((line) => line.match(TITLE_HEADER)?.[1]?.trim()).find(Boolean);
   if (explicit) return explicit;
+  const storyTitle = cleaned.map((line) => line.match(STORY_TITLE_HEADER)?.[1]?.trim()).filter((value): value is string => Boolean(value)).find((value) => !/^principal$|^alternativo$|^e\s+/.test(value));
+  if (storyTitle) return storyTitle;
   return cleaned.find((line) => DELIVERY_HEADER.test(line) && !REFERENCE_LINE.test(line)) || "Título não informado";
 }
 
@@ -305,6 +342,8 @@ function buildScenarios(lines: string[], deliveryId: string, allowSemanticSplit 
     return {
       id: `${deliveryId}-scenario-${index + 1}`,
       title: chunks.length > 1 ? `${title} (continuação ${index + 1})` : title,
+      storyTitle: title,
+      origin: { storyTitle: title, page: sourcePage(lines), excerpt: sourceExcerpt(lines) },
       preconditions,
       data,
       steps,
@@ -322,13 +361,15 @@ function buildScenarios(lines: string[], deliveryId: string, allowSemanticSplit 
 export function formatScenario(scenario: GeneratedScenario) {
   const list = (items: string[]) => items.length ? items.map((item, index) => `${index + 1}. ${item}`).join("\n") : NOT_INFORMED;
   const gaps = scenario.gaps.length ? scenario.gaps.map((item, index) => `${index + 1}. ${item}`).join("\n") : "Nenhuma lacuna registrada.";
+  const origin = scenario.origin
+    ? `Página ${scenario.origin.page ?? "não identificada"} — ${scenario.origin.excerpt || "Trecho não identificado."}`
+    : "Origem não identificada.";
   return [
     `STEP ${scenario.id.match(/scenario-(\d+)$/)?.[1] ?? "1"} - ${scenario.title}`,
     "",
+    `História/Requisito: ${scenario.storyTitle ?? scenario.title}`,
+    `Origem: ${origin}`,
     `Referência: ${scenario.reference}`,
-    "",
-    "Pré-condições",
-    list(scenario.preconditions),
     "",
     "Passos",
     list(scenario.steps),
@@ -338,7 +379,6 @@ export function formatScenario(scenario: GeneratedScenario) {
     "",
     "Gaps e indefinições:",
     gaps,
-    ...(scenario.gherkin ? ["", "Gherkin", scenario.gherkin] : []),
   ].join("\n");
 }
 
@@ -349,8 +389,18 @@ export function organizeQaMaterial(source: string): OrganizedQaMaterial | null {
   const deliveries = groups.map((group, deliveryIndex) => {
     const sourceText = group.join("\n").trim();
     const id = `delivery-${deliveryIndex + 1}`;
-    const scenarios = buildScenarios(group, id);
-    return { id, title: findTitle(group), sourceText, scenarios, requirement: extractRequirementStructure(group) };
+    const storyGroups = splitExplicitStories(group);
+    const entries = storyGroups.length ? storyGroups : [group];
+    const stories = entries.map((storyLines, storyIndex) => {
+      const storyId = `${id}-story-${storyIndex + 1}`;
+      const storyTitle = findTitle(storyLines);
+      const requirement = extractRequirementStructure(storyLines);
+      const scenarios = buildScenarios(storyLines, storyId).map((scenario) => ({ ...scenario, storyTitle, origin: { storyTitle, page: sourcePage(storyLines) ?? sourcePage(group), excerpt: sourceExcerpt(storyLines) } }));
+      return { id: storyId, title: storyTitle, sourceText: storyLines.join("\n").trim(), requirement, scenarioIds: scenarios.map((scenario) => scenario.id), scenarios };
+    });
+    const scenarios = stories.flatMap((story) => story.scenarios);
+    const requirement = extractRequirementStructure(group);
+    return { id, title: findTitle(group), sourceText, scenarios, requirement, stories };
   });
   const validatedDeliveries = deliveries.map((delivery) => ({
     ...delivery,

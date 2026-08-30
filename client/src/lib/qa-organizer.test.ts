@@ -6,6 +6,55 @@ describe("organizeQaMaterial", () => {
     expect(organizeQaMaterial(" \n \n ")).toBeNull();
   });
 
+  it("separa histórias explícitas e vincula cada STEP à história e à origem", () => {
+    const result = organizeQaMaterial([
+      "[Página 1]",
+      "História: Cadastro de usuário",
+      "Critérios de aceite",
+      "Cadastrar usuário com dados válidos.",
+      "Passos",
+      "Preencher os dados documentados.",
+      "Resultado esperado",
+      "Usuário cadastrado.",
+      "História: Consulta de usuário",
+      "Critérios de aceite",
+      "Consultar usuário existente.",
+      "Passos",
+      "Consultar o usuário.",
+      "Resultado esperado",
+      "Dados exibidos.",
+    ].join("\n"));
+
+    expect(result?.deliveries).toHaveLength(1);
+    expect(result?.deliveries[0].stories).toHaveLength(2);
+    expect(result?.deliveries[0].stories?.map((story) => story.title)).toEqual(["Cadastro de usuário", "Consulta de usuário"]);
+    expect(result?.scenarios).toHaveLength(2);
+    expect(result?.scenarios[0].storyTitle).toBe("Cadastro de usuário");
+    expect(result?.scenarios[1].storyTitle).toBe("Consulta de usuário");
+    expect(result?.scenarios[0].origin).toEqual(expect.objectContaining({ storyTitle: "Cadastro de usuário", page: 1 }));
+    expect(result?.scenarios[1].origin).toEqual(expect.objectContaining({ storyTitle: "Consulta de usuário", page: 1 }));
+    expect(result?.scenarios[0].steps).not.toContain("Consultar o usuário.");
+    expect(result?.scenarios[1].steps).not.toContain("Preencher os dados documentados.");
+  });
+
+  it("formata o STEP para cópia sem pré-condições, Gherkin ou texto técnico longo", () => {
+    const result = organizeQaMaterial([
+      "História: Cadastro",
+      "Pré-condições",
+      "Usuário com acesso.",
+      "Passos",
+      "Preencher o nome.",
+      "Resultado esperado",
+      "Cadastro exibido.",
+    ].join("\n"));
+    const formatted = formatScenario(result!.scenarios[0]);
+    expect(formatted).toContain("História/Requisito: Cadastro");
+    expect(formatted).toContain("Passos");
+    expect(formatted).toContain("Resultado esperado");
+    expect(formatted).not.toContain("\nPré-condições\n");
+    expect(formatted).not.toContain("Gherkin");
+  });
+
   it("preserva uma entrega sem inventar um cenário", () => {
     const source = "O botão Salvar não responde depois do preenchimento.\nA tela permanece aberta.";
     const result = organizeQaMaterial(source);
