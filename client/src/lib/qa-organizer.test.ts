@@ -37,22 +37,27 @@ describe("organizeQaMaterial", () => {
     expect(result?.scenarios[1].steps).not.toContain("Preencher os dados documentados.");
   });
 
-  it("formata o STEP para cópia sem pré-condições, Gherkin ou texto técnico longo", () => {
+  it("formata o STEP somente com as seções exigidas e preserva pré-condições e dados", () => {
     const result = organizeQaMaterial([
       "História: Cadastro",
       "Pré-condições",
       "Usuário com acesso.",
+      "Dados",
+      "E-mail: qa@exemplo.com.",
       "Passos",
       "Preencher o nome.",
       "Resultado esperado",
       "Cadastro exibido.",
     ].join("\n"));
     const formatted = formatScenario(result!.scenarios[0]);
-    expect(formatted).toContain("História/Requisito: Cadastro");
-    expect(formatted).toContain("Passos");
-    expect(formatted).toContain("Resultado esperado");
-    expect(formatted).not.toContain("\nPré-condições\n");
+    expect(formatted).toContain("STEP 1 - Cadastro");
+    expect(formatted).toContain("Pré-condições\n1. Usuário com acesso.\n2. Dados: E-mail: qa@exemplo.com.");
+    expect(formatted).toContain("Passos\n1. Preencher o nome.");
+    expect(formatted).toContain("Resultado esperado\n1. Cadastro exibido.");
+    expect(formatted).not.toContain("História/Requisito");
     expect(formatted).not.toContain("Gherkin");
+    expect(formatted).not.toContain("Origem:");
+    expect(formatted).not.toContain("Referência:");
   });
 
   it("preserva uma entrega sem inventar um cenário", () => {
@@ -133,6 +138,40 @@ describe("organizeQaMaterial", () => {
     expect(result?.scenarios[0].steps).toHaveLength(8);
     expect(result?.scenarios[1].steps).toEqual(["Nove"]);
     expect(result?.scenarios[1].title).toContain("continuação 2");
+  });
+
+  it("preserva uma tabela da funcionalidade no STEP sem descartar linhas", () => {
+    const result = organizeQaMaterial([
+      "STEP 1",
+      "Título: Consulta de pedidos",
+      "Dados",
+      "| Campo | Valor |",
+      "| Status | Pendente |",
+      "Passos",
+      "Consultar pedidos.",
+      "Resultado esperado",
+      "Exibir o pedido com status Pendente.",
+    ].join("\n"));
+    const scenario = result!.scenarios[0];
+    expect(scenario.data).toEqual(["| Campo | Valor |", "| Status | Pendente |"]);
+    expect(formatScenario(scenario)).toContain("Dados: | Status | Pendente |");
+    expect(scenario.steps).toEqual(["Consultar pedidos."]);
+    expect(scenario.expectedResult).toEqual(["Exibir o pedido com status Pendente."]);
+  });
+
+  it("não descarta funcionalidades quando uma entrega gera mais de dez STEPs", () => {
+    const source = [
+      "STEP 1",
+      "Título: Fluxo extenso",
+      "Passos",
+      ...Array.from({ length: 11 }, (_, index) => `${index + 1}. Executar ação ${index + 1}.`),
+      "Resultado esperado",
+      "Concluir o fluxo.",
+    ].join("\n");
+    const result = organizeQaMaterial(source);
+    expect(result?.scenarios).toHaveLength(2);
+    expect(result?.scenarios.flatMap((scenario) => scenario.steps)).toHaveLength(11);
+    expect(result?.scenarios[1].steps).toEqual(["Executar ação 9.", "Executar ação 10.", "Executar ação 11."]);
   });
 
   it("registra ausências e não usa frases de comportamento inventadas", () => {

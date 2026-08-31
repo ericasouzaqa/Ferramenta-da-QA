@@ -360,25 +360,23 @@ function buildScenarios(lines: string[], deliveryId: string, allowSemanticSplit 
 
 export function formatScenario(scenario: GeneratedScenario) {
   const list = (items: string[]) => items.length ? items.map((item, index) => `${index + 1}. ${item}`).join("\n") : NOT_INFORMED;
+  const preconditions = [
+    ...scenario.preconditions,
+    ...(scenario.data ?? []).map((item) => `Dados: ${item}`),
+  ];
   const gaps = scenario.gaps.length ? scenario.gaps.map((item, index) => `${index + 1}. ${item}`).join("\n") : "Nenhuma lacuna registrada.";
-  const origin = scenario.origin
-    ? `Página ${scenario.origin.page ?? "não identificada"} — ${scenario.origin.excerpt || "Trecho não identificado."}`
-    : "Origem não identificada.";
   return [
     `STEP ${scenario.id.match(/scenario-(\d+)$/)?.[1] ?? "1"} - ${scenario.title}`,
     "",
-    `História/Requisito: ${scenario.storyTitle ?? scenario.title}`,
-    `Origem: ${origin}`,
-    `Referência: ${scenario.reference}`,
+    "Pré-condições",
+    list(preconditions),
     "",
     "Passos",
     list(scenario.steps),
     "",
     "Resultado esperado",
     list(scenario.expectedResult),
-    "",
-    "Gaps e indefinições:",
-    gaps,
+    ...(scenario.gaps.length ? ["", "Gaps e indefinições", gaps] : []),
   ].join("\n");
 }
 
@@ -420,7 +418,7 @@ export function organizeQaMaterial(source: string): OrganizedQaMaterial | null {
       };
     }),
   }));
-  const scenarios = validatedDeliveries.flatMap((delivery) => delivery.scenarios.slice(0, 10));
+  const scenarios = validatedDeliveries.flatMap((delivery) => delivery.scenarios);
   const requirements = validatedDeliveries.map((delivery) => delivery.requirement);
   return { deliveries: validatedDeliveries, scenarios, sourceLineCount: lines.filter((line) => cleanLine(line)).length, requirements };
 }
