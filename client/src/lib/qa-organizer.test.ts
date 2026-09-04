@@ -51,7 +51,7 @@ describe("organizeQaMaterial", () => {
     ].join("\n"));
     const formatted = formatScenario(result!.scenarios[0]);
     expect(formatted).toContain("STEP 1 - Cadastro");
-    expect(formatted).toContain("Pré-condições\n1. Usuário com acesso.\n2. Dados: E-mail: qa@exemplo.com.");
+    expect(formatted).toContain("Pré-condições\n1. Usuário com acesso.\n\nDados de teste\n1. E-mail: qa@exemplo.com.");
     expect(formatted).toContain("Passos\n1. Preencher o nome.");
     expect(formatted).toContain("Resultado esperado\n1. Cadastro exibido.");
     expect(formatted).not.toContain("História/Requisito");
@@ -154,7 +154,7 @@ describe("organizeQaMaterial", () => {
     ].join("\n"));
     const scenario = result!.scenarios[0];
     expect(scenario.data).toEqual(["| Campo | Valor |", "| Status | Pendente |"]);
-    expect(formatScenario(scenario)).toContain("Dados: | Status | Pendente |");
+    expect(formatScenario(scenario)).toContain("Dados de teste\n1. | Campo | Valor |\n2. | Status | Pendente |");
     expect(scenario.steps).toEqual(["Consultar pedidos."]);
     expect(scenario.expectedResult).toEqual(["Exibir o pedido com status Pendente."]);
   });
@@ -362,12 +362,14 @@ describe("organização de narrativa em História de Usuário", () => {
       "Ao determinar um dispositivo, tipo de comando e timeout, o botão Enviar fica habilitado;",
       "Dispositivo: dropdown de seleção única com a relação de seriais de dispositivos vinculados ao objeto rastreável.",
       "Tipo de comando: dropdown de seleção única com opções de comandos disponíveis para o dispositivo.",
+      "HABILITAR MODO EMERGENCIA - 108",
+      "DESABILITAR MODO EMERGENCIA - 74",
       "RESETAR MÓDULO - ?",
       "Ponto de atenção: novos comandos precisam ser incluídos nessa tabela de forma fácil e rápida.",
       "Após enviar, o sistema:",
       "Envia para o worker o comando;",
       "Salva no banco o comando, além do usuário que o enviou e data/hora;",
-      "Obs: não será possível o envio para iscas ou comandos de sms nessa entrega.",
+      "Obs: não será possível o envio para iscas ou comandos de sms nessa entrega, o entregável é testável para ocorrências da base, com objeto rastreável ativo e acatando comandos simples enviados via Mogno.",
       "Mostra uma snackbar de sucesso no envio.",
       "Obs: na ausência de documentação técnica referente a configuração de timeout e envio de parâmetro, esse pedaço será executado apenas no PBI04",
       "Critérios de aceite",
@@ -396,10 +398,16 @@ describe("organização de narrativa em História de Usuário", () => {
       "Acionar o botão \"Comandos\".",
       "Selecionar um dispositivo vinculado ao objeto rastreável.",
       "Selecionar um tipo de comando disponível para o dispositivo.",
-      "Informar o timeout descrito para o envio.",
       "Acionar o botão \"Enviar\".",
     ]);
-    expect(result?.scenarios[0].steps.every((step) => /^(?:Acessar|Acionar|Selecionar|Informar)\b/.test(step))).toBe(true);
+    expect(result?.scenarios[0].steps.every((step) => /^(?:Acessar|Acionar|Selecionar)\b/.test(step))).toBe(true);
+    expect(result?.scenarios[0].steps.join(" ")).not.toMatch(/timeout|parâmetro/i);
+    expect(result?.scenarios[0].preconditions.join(" ")).toMatch(/ocorrência da base|objeto rastreável ativo|Mogno/i);
+    expect(result?.scenarios[0].data).toEqual([
+      "HABILITAR MODO EMERGENCIA - 108",
+      "DESABILITAR MODO EMERGENCIA - 74",
+    ]);
     expect(result?.scenarios[0].expectedResult.join(" ")).toMatch(/worker|banco|snackbar/i);
+    expect(result?.scenarios[0].gaps.join(" ")).toMatch(/RESETAR MÓDULO|timeout|parâmetro/i);
   });
 });

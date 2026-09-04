@@ -20,6 +20,7 @@ export function formatExportMarkdown(bundle: ExportBundle): string {
   const steps = bundle.scenarios.length ? bundle.scenarios.map((scenario, index) => [
     `## STEP ${index + 1} — ${scenario.title}`,
     `**Pré-condições:** ${scenario.preconditions.join("; ") || "Não informado no conteúdo de origem."}`,
+    ...(scenario.data?.length ? [`**Dados de teste:** ${scenario.data.join("; ")}`] : []),
     "**Passos:**",
     ...(scenario.steps.length ? scenario.steps.map((step, stepIndex) => `${stepIndex + 1}. ${step}`) : ["Não informado no conteúdo de origem."]),
     `**Resultado esperado:** ${scenario.expectedResult.join("; ") || "Não informado no conteúdo de origem."}`,
@@ -43,10 +44,10 @@ export function formatExportText(bundle: ExportBundle): string {
 
 export function formatExportExcel(bundle: ExportBundle): string {
   const rows = [
-    ["Tipo", "Título", "Objetivo/Passos", "Risco", "Como testar", "Ferramenta", "Resultado esperado", "Justificativa"],
-    ...bundle.scenarios.map((scenario, index) => ["STEP", `STEP ${index + 1} — ${scenario.title}`, scenario.steps.join(" | "), "", "", "", scenario.expectedResult.join(" | "), ""]),
-    ...bundle.performance.map((item) => ["PERFORMANCE", item.title, item.objective, item.risk, item.howToTest, item.recommendedTool, item.expectedResult, item.rationale]),
-    ...bundle.gaps.map((gap) => ["GAP", gap, "", "", "", "", "", ""]),
+    ["Tipo", "Título", "Pré-condições", "Dados de teste", "Objetivo/Passos", "Risco", "Como testar", "Ferramenta", "Resultado esperado", "Justificativa"],
+    ...bundle.scenarios.map((scenario, index) => ["STEP", `STEP ${index + 1} — ${scenario.title}`, scenario.preconditions.join(" | "), scenario.data?.join(" | ") ?? "", scenario.steps.join(" | "), "", "", "", scenario.expectedResult.join(" | "), ""]),
+    ...bundle.performance.map((item) => ["PERFORMANCE", item.title, "", "", item.objective, item.risk, item.howToTest, item.recommendedTool, item.expectedResult, item.rationale]),
+    ...bundle.gaps.map((gap) => ["GAP", gap, "", "", "", "", "", "", "", ""]),
   ];
   const escape = (value: string) => `"${value.replaceAll('"', '""')}"`;
   return rows.map((row) => row.map(escape).join("\t")).join("\n");

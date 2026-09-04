@@ -225,7 +225,11 @@ function lowerFirst(value: string) {
 }
 
 function narrativeContent(lines: string[]) {
-  return lines.map(cleanLine).filter((line) => line && !GENERIC_LINE.test(line) && !ALL_STRUCTURE_HEADERS.some((header) => header.test(line)));
+  return lines.map(cleanLine).filter((line) => line
+    && !GENERIC_LINE.test(line)
+    && !DELIVERY_HEADER.test(line)
+    && !TITLE_HEADER.test(line)
+    && !ALL_STRUCTURE_HEADERS.some((header) => header.test(line)));
 }
 
 function titleGoal(title: string) {
@@ -264,7 +268,10 @@ function inferNarrativeStructure(lines: string[]) {
   const cleaned = narrativeContent(lines);
   const attentionPoints = uniqueValues(cleaned.map((line) => line.match(NARRATIVE_ATTENTION)?.[1] ?? ""));
   const technicalConstraints = uniqueValues(cleaned.filter((line) => NARRATIVE_CONSTRAINT.test(line)));
-  const businessRules = uniqueValues(cleaned.filter((line) => NARRATIVE_RULE.test(line) && !NARRATIVE_CONSTRAINT.test(line)));
+  const businessRules = uniqueValues(cleaned.filter((line) => NARRATIVE_RULE.test(line)
+    && !NARRATIVE_CONSTRAINT.test(line)
+    && !NARRATIVE_ATTENTION.test(line)
+    && !/^É possível\b/i.test(line)));
   const dependencies = uniqueValues(cleaned.filter((line) => NARRATIVE_DEPENDENCY.test(line)));
   const technicalElements = uniqueValues(cleaned.filter((line) => NARRATIVE_TECHNICAL.test(line)));
   const undefinedValues = cleaned.filter((line) => /(?:\?\s*$|ausência de documentação|não informado|não definida?|não especificad[oa])/i.test(line));
@@ -348,6 +355,19 @@ function quotedTerms(value: string) {
   return Array.from(value.matchAll(/["“”]([^"“”]+)["“”]/g), (match) => match[1]);
 }
 
+function professionalNarrativePreconditions(lines: string[]) {
+  const text = narrativeContent(lines).join(" ");
+  const values: string[] = [];
+  if (/ocorrências? da base/i.test(text)) values.push("Possuir uma ocorrência da base.");
+  if (/objeto rastreável ativo/i.test(text)) values.push("Possuir um objeto rastreável ativo com dispositivo vinculado.");
+  if (/acatando comandos simples|comandos simples.+Mogno/i.test(text)) values.push("Utilizar um dispositivo que aceite comandos simples enviados via Mogno.");
+  return values;
+}
+
+function commandTestData(lines: string[]) {
+  return lines.map(cleanLine).filter((line) => /\s[-–—]\s\d+\s*$/.test(line));
+}
+
 function professionalNarrativeSteps(lines: string[], fallback: string[]) {
   const cleaned = narrativeContent(lines);
   const steps: string[] = [];
@@ -361,8 +381,9 @@ function professionalNarrativeSteps(lines: string[], fallback: string[]) {
   if (device) steps.push("Selecionar um dispositivo vinculado ao objeto rastreável.");
   const command = cleaned.find((line) => /^Tipo de comando\s*:/i.test(line));
   if (command) steps.push("Selecionar um tipo de comando disponível para o dispositivo.");
-  if (cleaned.some((line) => /tipo de comando e timeout.+botão Enviar fica habilitado/i.test(line))) {
-    steps.push("Informar o timeout descrito para o envio.");
+  const timeoutUndefined = cleaned.some((line) => /ausência de documentação.+timeout|timeout.+(?:PBI\d+|fora desta entrega)/i.test(line));
+  if (!timeoutUndefined && cleaned.some((line) => /tipo de comando e timeout.+botão Enviar fica habilitado/i.test(line))) {
+    steps.push("Informar um valor de timeout.");
   }
   if (cleaned.some((line) => /(?:após enviar|botão Enviar fica habilitado|snackbar de sucesso no envio)/i.test(line))) {
     steps.push("Acionar o botão " + '"Enviar"' + ".");
@@ -372,7 +393,9 @@ function professionalNarrativeSteps(lines: string[], fallback: string[]) {
 
 function professionalNarrativeExpected(lines: string[], fallback: string[]) {
   const cleaned = narrativeContent(lines);
-  const observable = cleaned.filter((line) => /(?:abre a janela|dentro da janela há|botão Enviar fica habilitado|envia para o worker|salva no banco|snackbar de sucesso)/i.test(line));
+  const timeoutUndefined = cleaned.some((line) => /ausência de documentação.+timeout|timeout.+(?:PBI\d+|fora desta entrega)/i.test(line));
+  const observable = cleaned.filter((line) => /(?:abre a janela|dentro da janela há|botão Enviar fica habilitado|envia para o worker|salva no banco|snackbar de sucesso)/i.test(line)
+    && !(timeoutUndefined && /timeout/i.test(line)));
   return uniqueValues([...observable, ...fallback]);
 }
 
@@ -421,8 +444,10 @@ function buildScenarios(lines: string[], deliveryId: string, allowSemanticSplit 
 
   const baseTitle = findTitle(lines);
   const title = behaviorLabel ? `${baseTitle} — ${behaviorLabel}` : baseTitle;
-  const preconditions = extractSection(lines, SECTION_HEADERS.preconditions);
-  const data = extractSection(lines, STRUCTURE_HEADERS.data);
+  const explicitPreconditions = extractSection(lines, SECTION_HEADERS.preconditions);
+  const preconditions = explicitPreconditions.length ? explicitPreconditions : professionalNarrativePreconditions(lines);
+  const explicitData = extractSection(lines, STRUCTURE_HEADERS.data);
+  const data = explicitData.length ? explicitData : commandTestData(lines);
   const sectionSteps = extractSection(lines, SECTION_HEADERS.steps);
   const numberedSteps = extractNumberedSteps(lines);
   const extractedActions = extractExplicitActions(lines);
@@ -472,10 +497,8 @@ function buildScenarios(lines: string[], deliveryId: string, allowSemanticSplit 
 
 export function formatScenario(scenario: GeneratedScenario) {
   const list = (items: string[]) => items.length ? items.map((item, index) => `${index + 1}. ${item}`).join("\n") : NOT_INFORMED;
-  const preconditions = [
-    ...scenario.preconditions,
-    ...(scenario.data ?? []).map((item) => `Dados: ${item}`),
-  ];
+  const preconditions = scenario.preconditions;
+  const data = scenario.data ?? [];
   const gaps = scenario.gaps.length ? scenario.gaps.map((item, index) => `${index + 1}. ${item}`).join("\n") : "Nenhuma lacuna registrada.";
   return [
     `STEP ${scenario.id.match(/scenario-(\d+)$/)?.[1] ?? "1"} - ${scenario.title}`,
@@ -483,6 +506,7 @@ export function formatScenario(scenario: GeneratedScenario) {
     "Pré-condições",
     list(preconditions),
     "",
+    ...(data.length ? ["Dados de teste", list(data), ""] : []),
     "Passos",
     list(scenario.steps),
     "",
@@ -516,7 +540,8 @@ export function organizeQaMaterial(source: string): OrganizedQaMaterial | null {
     ...delivery,
     scenarios: delivery.scenarios.map((scenario) => {
       const validation = validateScenarioAgainstSource(delivery.sourceText, scenario);
-      const gaps = Array.from(new Set([...scenario.gaps, ...validation.warnings]));
+      const contextualRequirementGaps = delivery.requirement.gaps.filter((gap) => !/Critérios de aceitação não informados|Não foi possível derivar uma História de Usuário/i.test(gap));
+      const gaps = Array.from(new Set([...scenario.gaps, ...contextualRequirementGaps, ...validation.warnings]));
       const inconsistent = validation.warnings.some((warning) => /sem correspondência literal|sem rastreabilidade suficiente|conflito|sem origem/i.test(warning))
         || gaps.some((gap) => /conflito|sem origem/i.test(gap));
       return {

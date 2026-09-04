@@ -108,10 +108,19 @@ describe("fluxo documental da Ferramenta da QA", () => {
     await user.type(screen.getByLabelText("Texto de origem"), [
       "⭐SC-3786 PBI01 - Enviar um comando para um equipamento",
       "Descrição",
-      "Inserir o botão Comandos dentro da seção Dispositivos;",
+      "Inserir o botão \"Comandos\" dentro da seção \"Dispositivos\";",
+      "O botão abre a janela lateral \"Comandos\";",
       "Ao determinar um dispositivo, tipo de comando e timeout, o botão Enviar fica habilitado;",
+      "Dispositivo: dropdown de seleção única com seriais vinculados ao objeto rastreável.",
+      "Tipo de comando: dropdown de seleção única com comandos disponíveis para o dispositivo.",
+      "HABILITAR MODO EMERGENCIA - 108",
+      "RESETAR MÓDULO - ?",
       "Ponto de atenção: novos comandos precisam ser incluídos facilmente.",
-      "Obs: não será possível o envio para iscas ou comandos de sms nessa entrega.",
+      "Envia para o worker o comando;",
+      "Salva no banco o comando, além do usuário que o enviou e data/hora;",
+      "Mostra uma snackbar de sucesso no envio.",
+      "Obs: não será possível o envio para iscas ou comandos de sms nessa entrega, o entregável é testável para ocorrências da base, com objeto rastreável ativo e acatando comandos simples enviados via Mogno.",
+      "Obs: na ausência de documentação técnica referente a configuração de timeout e envio de parâmetro, esse pedaço será executado apenas no PBI04",
       "Critérios de aceite",
       "É possível enviar cada um dos comandos listados",
     ].join("\n"));
@@ -119,11 +128,16 @@ describe("fluxo documental da Ferramenta da QA", () => {
     await user.click(screen.getByRole("button", { name: "Organizar História" }));
     expect(screen.getAllByText("SC-3786 PBI01 - Enviar um comando para um equipamento").length).toBeGreaterThan(0);
     expect(screen.getByText("enviar um comando para um equipamento")).toBeTruthy();
-    expect(screen.getByText("pessoa usuária da funcionalidade")).toBeTruthy();
+    expect(screen.getByText("usuário")).toBeTruthy();
     expect(screen.queryByText("Título não informado")).toBeNull();
     expect(screen.queryByText("História de usuário não informada nos artefatos.")).toBeNull();
     expect(screen.queryByText("About")).toBeNull();
     expect(document.querySelector('input[type="file"]')).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Gerar STEPs" }));
+    expect(screen.getByText("Possuir uma ocorrência da base.")).toBeTruthy();
+    expect(screen.getByText("HABILITAR MODO EMERGENCIA - 108")).toBeTruthy();
+    expect(screen.getAllByText(/Indefinição identificada: RESETAR MÓDULO/).length).toBeGreaterThan(0);
+    expect(screen.queryByText("Informar um valor de timeout.")).toBeNull();
   });
 
   it("executa o fluxo crítico completo e exporta sem acessar serviços externos", async () => {
