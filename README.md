@@ -1,60 +1,50 @@
 # Erika QA
 
-## Visão Geral
+## Sobre a ferramenta
 
-Erika QA é uma ferramenta local para apoiar Analistas de Qualidade na organização de histórias de usuário, estruturação de requisitos, geração de STEPs, identificação de riscos preventivos de performance e consolidação de gaps.
+O Erika QA ajuda profissionais de Qualidade a transformar uma descrição de sistema em um material mais organizado para testes.
 
-A aplicação preserva a fonte original e trabalha de forma determinística, sem dependência obrigatória de IA, API, backend, banco de dados ou conexão externa.
+Com ele, você pode:
 
-## Objetivo
+- organizar histórias de usuário;
+- criar passos para os testes;
+- identificar informações que estão faltando ou pouco claras;
+- levantar possíveis problemas de velocidade;
+- salvar o resultado para consultar ou compartilhar.
 
-O objetivo é transformar texto bruto em material rastreável para QA, sem inventar comportamentos, completar lacunas ou substituir decisões do time.
+A ferramenta funciona no próprio computador e não exige cadastro, servidor ou conexão com a internet para realizar essas atividades.
 
-> O que não está na fonte não vira requisito.
+## Como funciona
 
-## Funcionalidades
+Você informa o texto da história ou do requisito, e a ferramenta organiza o conteúdo em etapas mais fáceis de entender. Depois, é possível revisar as informações, conferir os pontos de atenção e exportar o resultado.
 
-O fluxo oficial é:
+A ferramenta usa apenas as informações fornecidas. Ela não inventa dados que não estejam no texto original.
 
-`Texto Bruto → Organizar História → Gerar STEPs → Análise Preventiva de Performance → Gaps e Indefinições → Exportar Resultado`
+## Exportação
 
-A etapa **Organizar História** identifica, quando presentes, os campos “Como um”, “Eu quero”, “Para que”, critérios de aceitação, regras de negócio, restrições, dependências, fluxos, exceções e pontos de atenção. A etapa **Gerar STEPs** produz pré-condições, passos objetivos e resultados esperados usando somente informações explícitas.
+O resultado pode ser salvo nos formatos:
 
-A **Análise Preventiva de Performance** registra riscos observáveis e implícitos, objetivo, forma de teste, ferramenta recomendada, resultado esperado e justificativa. Ela não sugere soluções técnicas. **Gaps e Indefinições** consolida ambiguidades, conflitos, informações ausentes, regras incompletas e critérios insuficientes sem preencher lacunas.
-
-O resultado pode ser exportado localmente em **TXT**, **Markdown** e **Excel compatível com planilhas**. O processamento é exclusivamente textual e local.
-
-## Arquitetura
-
-A interface fica em `client/src/pages/Home.tsx`. As regras determinísticas de organização e geração de STEPs ficam em `client/src/lib/qa-organizer.ts`; a auditoria está em `client/src/lib/qa-audit.ts`; a análise preventiva está em `client/src/lib/qa-performance.ts`; e a exportação está em `client/src/lib/qa-export.ts`.
-
-A aplicação Web é construída com Vite, React e TypeScript. A versão Desktop utiliza Electron com isolamento de contexto, sem integração de credenciais ou armazenamento de secrets. Os dados permanecem no dispositivo por meio do armazenamento local do navegador/aplicativo.
+- TXT;
+- Markdown;
+- Excel compatível com planilhas.
 
 ## Instalação
 
-Requisitos: **Node.js 22** e **pnpm**.
+Para instalar e executar o projeto, é necessário ter o [Node.js 22](https://nodejs.org/) e o [pnpm](https://pnpm.io/) instalados.
 
 ```bash
 pnpm install --frozen-lockfile --ignore-scripts
 ```
 
-## Execução Web
+## Executar no navegador
 
 ```bash
 pnpm dev
 ```
 
-Para validação de produção:
+Depois, abra no navegador o endereço mostrado no terminal.
 
-```bash
-pnpm check
-pnpm test
-pnpm test:offline
-pnpm build
-pnpm start
-```
-
-## Execução Desktop
+## Executar como aplicativo para computador
 
 Durante o desenvolvimento:
 
@@ -62,24 +52,28 @@ Durante o desenvolvimento:
 pnpm desktop:dev
 ```
 
-Para gerar o executável portátil do Windows:
+Para gerar a versão para Windows:
 
 ```bash
 pnpm desktop:win
 ```
 
-O arquivo é criado em `release/`. A publicação final do executável ocorre pelo workflow do GitHub Actions em ambiente Windows.
+O arquivo gerado ficará na pasta `release/`.
 
-## Exportação
+## Testes do projeto
 
-Depois de concluir a análise, acesse **Exportar Resultado**. Os arquivos incluem os STEPs, as validações preventivas de performance e os gaps consolidados. A geração acontece no próprio dispositivo.
+Para verificar se o projeto está funcionando corretamente, use:
 
-O comando `pnpm test:offline` executa os testes com HTTP, HTTPS, sockets e resolução DNS bloqueados no processo. Ele valida que as funcionalidades principais não fazem chamadas obrigatórias a serviços externos.
+```bash
+pnpm check
+pnpm test
+pnpm build
+```
 
 ## Publicação
 
-O workflow de qualidade executa a verificação de tipos, testes e build. O workflow de páginas publica a versão Web, e o workflow de release prepara a versão Desktop para Windows quando uma tag de versão é enviada ao GitHub.
+A publicação da versão Web e a criação da versão para Windows são realizadas pelos workflows configurados no GitHub Actions.
 
-## Roadmap
+## Licença
 
-O foco atual é manter o fluxo textual simples, rastreável e manutenível. Evoluções futuras devem preservar a operação local, a ausência de dependência obrigatória de IA e o princípio de não inventar informações ausentes.
+Consulte os arquivos deste repositório para mais informações sobre o uso do projeto.
