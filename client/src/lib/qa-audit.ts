@@ -78,13 +78,12 @@ function addGap(gaps: Map<string, AuditGap>, gap: ClassifiedGap, origin: string)
 
 function scenarioIsFullyTraceable(scenario: GeneratedScenario) {
   const traceability = scenario.traceability;
-  if (!traceability) return scenarioQuality(scenario) === "completo" && scenario.gaps.length === 0;
+  if (!traceability) return false;
   return traceability.functionality
     && traceability.preconditions.every(Boolean)
     && traceability.data.every(Boolean)
     && traceability.steps.every(Boolean)
-    && traceability.expectedResult.every(Boolean)
-    && scenarioQuality(scenario) === "completo";
+    && traceability.expectedResult.every(Boolean);
 }
 
 function scenarioIsPartiallyTraceable(scenario: GeneratedScenario) {

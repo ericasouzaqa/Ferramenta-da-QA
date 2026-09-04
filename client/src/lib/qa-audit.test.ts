@@ -65,7 +65,7 @@ describe("buildQualityAudit", () => {
         origin: expect.arrayContaining(["delivery-1/delivery-1-story-1-scenario-1"]),
       }),
     ]));
-    expect(audit.traceability.percentage).toBe(0);
+    expect(audit.traceability.percentage).toBe(100);
     expect(audit.attentionPoints.length).toBeGreaterThan(0);
   });
 
