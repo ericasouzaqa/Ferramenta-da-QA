@@ -49,6 +49,7 @@ Para validação de produção:
 ```bash
 pnpm check
 pnpm test
+pnpm test:offline
 pnpm build
 pnpm start
 ```
@@ -72,6 +73,8 @@ O arquivo é criado em `release/`. A publicação final do executável ocorre pe
 ## Exportação
 
 Depois de concluir a análise, acesse **Exportar Resultado**. Os arquivos incluem os STEPs, as validações preventivas de performance e os gaps consolidados. A geração acontece no próprio dispositivo.
+
+O comando `pnpm test:offline` executa os testes com HTTP, HTTPS, sockets e resolução DNS bloqueados no processo. Ele valida que as funcionalidades principais não fazem chamadas obrigatórias a serviços externos.
 
 ## Publicação
 

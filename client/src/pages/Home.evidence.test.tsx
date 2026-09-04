@@ -138,4 +138,31 @@ describe("fluxo documental da Ferramenta da QA", () => {
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Abrir tela."));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Exibir tela."));
   });
+
+  it("executa o fluxo crítico completo e exporta sem acessar serviços externos", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+    await user.type(screen.getByLabelText("Texto de origem"), [
+      "STEP 1",
+      "Título: Pesquisar clientes",
+      "Item 1",
+      "Passos",
+      "Pesquisar clientes no filtro.",
+      "Resultado esperado",
+      "Exibir a lista de clientes.",
+    ].join("\n"));
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: "Organizar entregas" }));
+    await user.click(screen.getByRole("button", { name: "Gerar STEPs" }));
+    await user.click(screen.getByRole("button", { name: "Analisar Performance" }));
+    expect(screen.getByRole("heading", { name: "Análise Preventiva de Performance" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Ver Gaps e Indefinições" }));
+    expect(screen.getByRole("heading", { name: "Gaps e Indefinições" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Exportar Resultado" }));
+    expect(screen.getByRole("heading", { name: "Exportar Resultado" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: /TXT/ }));
+    await user.click(screen.getByRole("button", { name: /Markdown/ }));
+    await user.click(screen.getByRole("button", { name: /Excel/ }));
+    expect(HTMLAnchorElement.prototype.click).toHaveBeenCalledTimes(3);
+  });
 });

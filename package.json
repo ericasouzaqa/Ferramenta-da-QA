@@ -17,6 +17,7 @@
     "check": "tsc --noEmit",
     "format": "prettier --write .",
     "test": "vitest run",
+    "test:offline": "node scripts/test-offline.cjs",
     "desktop:dev": "pnpm build --mode desktop && electron desktop/main.cjs",
     "desktop:win": "pnpm build --mode desktop && electron-builder --win portable"
   },
