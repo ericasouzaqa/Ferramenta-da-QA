@@ -253,11 +253,11 @@ describe("organizeQaMaterial", () => {
     expect(requirement?.gaps).toEqual([]);
   });
 
-  it("registra gaps da estrutura quando a fonte não informa história ou critérios", () => {
+  it("deriva a história do título narrativo e registra apenas critérios realmente ausentes", () => {
     const result = organizeQaMaterial("STEP 1\nTítulo: Consulta\nPassos\nConsultar.");
+    expect(result?.requirements[0].userStory.iWant).toEqual(["consulta"]);
     expect(result?.requirements[0].gaps).toEqual([
-      "História de usuário não informada nos artefatos.",
-      "Critérios de aceitação não informados nos artefatos.",
+      "Critérios de aceitação não informados no conteúdo fornecido.",
     ]);
   });
 
@@ -347,5 +347,47 @@ describe("organizeQaMaterial", () => {
     ].join("\n"));
     expect(result?.scenarios).toHaveLength(1);
     expect(result?.scenarios[0].steps).toEqual(["Informar dados.", "Salvar cadastro."]);
+  });
+});
+
+
+describe("organização de narrativa em História de Usuário", () => {
+  it("reconhece o título e deriva a estrutura do requisito SC-3786 somente da fonte", () => {
+    const source = [
+      "⭐SC-3786 PBI01 - Enviar um comando para um equipamento",
+      "Descrição",
+      "Inserir o botão \"Comandos\" dentro da seção \"Dispositivos\";",
+      "O botão abre a janela lateral \"Comandos\";",
+      "Dentro da janela há a seção \"Enviar novo comando\"",
+      "Ao determinar um dispositivo, tipo de comando e timeout, o botão Enviar fica habilitado;",
+      "Dispositivo: dropdown de seleção única com a relação de seriais de dispositivos vinculados ao objeto rastreável.",
+      "Tipo de comando: dropdown de seleção única com opções de comandos disponíveis para o dispositivo.",
+      "RESETAR MÓDULO - ?",
+      "Ponto de atenção: novos comandos precisam ser incluídos nessa tabela de forma fácil e rápida.",
+      "Após enviar, o sistema:",
+      "Envia para o worker o comando;",
+      "Salva no banco o comando, além do usuário que o enviou e data/hora;",
+      "Obs: não será possível o envio para iscas ou comandos de sms nessa entrega.",
+      "Mostra uma snackbar de sucesso no envio.",
+      "Obs: na ausência de documentação técnica referente a configuração de timeout e envio de parâmetro, esse pedaço será executado apenas no PBI04",
+      "Critérios de aceite",
+      "É possível enviar cada um dos comandos listados",
+    ].join("\n");
+
+    const result = organizeQaMaterial(source);
+    const delivery = result?.deliveries[0];
+    const requirement = delivery?.requirement;
+
+    expect(delivery?.title).toBe("SC-3786 PBI01 - Enviar um comando para um equipamento");
+    expect(delivery?.stories?.[0].title).toBe("SC-3786 PBI01 - Enviar um comando para um equipamento");
+    expect(requirement?.userStory.asA.join(" ")).toMatch(/usuário|operador/i);
+    expect(requirement?.userStory.iWant.join(" ")).toMatch(/enviar um comando para um equipamento/i);
+    expect(requirement?.userStory.soThat.length).toBeGreaterThan(0);
+    expect(requirement?.acceptanceCriteria).toContain("É possível enviar cada um dos comandos listados");
+    expect(requirement?.businessRules.join(" ")).toMatch(/dispositivo|comando|Enviar/i);
+    expect(requirement?.technicalConstraints.join(" ")).toMatch(/iscas|sms|PBI04/i);
+    expect(requirement?.technicalElements.join(" ")).toMatch(/worker|banco|snackbar/i);
+    expect(requirement?.gaps.join(" ")).toMatch(/RESETAR MÓDULO|timeout|parâmetro/i);
+    expect(requirement?.gaps).not.toContain("História de usuário não informada nos artefatos.");
   });
 });

@@ -1,33 +1,17 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Home from "./Home";
 
-const { spreadsheetExtractionMock, toastMock } = vi.hoisted(() => ({
-  spreadsheetExtractionMock: vi.fn(),
+const { toastMock } = vi.hoisted(() => ({
   toastMock: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
-
-vi.mock("@/lib/xlsx-reader", () => ({ extractSpreadsheetEvidence: spreadsheetExtractionMock }));
 vi.mock("sonner", () => ({ toast: toastMock }));
-
-function fileInput(container: HTMLElement, fragment: string) {
-  const input = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="file"]')).find((item) => item.accept.includes(fragment));
-  if (!input) throw new Error(`Entrada ${fragment} não encontrada.`);
-  return input;
-}
-
-function textFile(name: string, content: string) {
-  const file = new File([content], name, { type: "text/plain" });
-  Object.defineProperty(file, "text", { value: vi.fn().mockResolvedValue(content) });
-  return file;
-}
 
 describe("fluxo documental da Ferramenta da QA", () => {
   beforeEach(() => {
     localStorage.clear();
-    spreadsheetExtractionMock.mockReset();
     toastMock.success.mockReset();
     toastMock.error.mockReset();
     toastMock.info.mockReset();
@@ -43,7 +27,7 @@ describe("fluxo documental da Ferramenta da QA", () => {
   it("exibe as seis etapas do fluxo principal", () => {
     render(<Home />);
     expect(screen.getByRole("button", { name: /Texto Bruto/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Organizar História/ })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: /Organizar História/ }).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: /Gerar STEPs/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Performance/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Gaps/ })).toBeTruthy();
@@ -57,8 +41,8 @@ describe("fluxo documental da Ferramenta da QA", () => {
     render(<Home />);
     const source = screen.getByLabelText("Texto de origem");
     await user.type(source, "STEP 1\nTítulo: Cadastro\nItem 1");
-    expect((screen.getByRole("button", { name: "Organizar entregas" }) as HTMLButtonElement).disabled).toBe(true);
-    await user.click(screen.getByRole("button", { name: "Organizar entregas" }));
+    expect((screen.getByRole("button", { name: "Organizar História" }) as HTMLButtonElement).disabled).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Organizar História" }));
     expect(screen.getByText("Texto bruto")).toBeTruthy();
     expect(toastMock.error).not.toHaveBeenCalled();
   });
@@ -79,7 +63,7 @@ describe("fluxo documental da Ferramenta da QA", () => {
       "A campanha deve ser ativada.",
     ].join("\n"));
     await user.click(screen.getByRole("checkbox"));
-    await user.click(screen.getByRole("button", { name: "Organizar entregas" }));
+    await user.click(screen.getByRole("button", { name: "Organizar História" }));
     expect(await screen.findByRole("heading", { name: "Organizar História" })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Gerar STEPs" }));
     expect(screen.getByText("Ativar campanha")).toBeTruthy();
@@ -94,32 +78,11 @@ describe("fluxo documental da Ferramenta da QA", () => {
     render(<Home />);
     await user.type(screen.getByLabelText("Texto de origem"), "Título: Relato curto\nO botão não responde.");
     await user.click(screen.getByRole("checkbox"));
-    await user.click(screen.getByRole("button", { name: "Organizar entregas" }));
+    await user.click(screen.getByRole("button", { name: "Organizar História" }));
     await user.click(screen.getByRole("button", { name: "Gerar STEPs" }));
     expect(screen.getAllByText("Não informado no conteúdo de origem.").length).toBeGreaterThan(0);
     expect(screen.queryByText(/A funcionalidade deve concluir|Corrigir o comportamento descrito/)).toBeNull();
     expect(screen.getByText("Gaps e indefinições")).toBeTruthy();
-  });
-
-  it("lê XLSX e preserva abas, cabeçalhos e linhas", async () => {
-    const user = userEvent.setup();
-    spreadsheetExtractionMock.mockResolvedValue({ sourceText: "[Planilha: regras.xlsx]\n[Aba: Regras]\nCabeçalhos: Campo | Regra\nLinha 2: Campo=Status | Regra=Obrigatório", sheetCount: 1, rowCount: 1, sheets: [] });
-    const { container } = render(<Home />);
-    await user.upload(fileInput(container, "spreadsheetml.sheet"), new File(["xlsx"], "regras.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
-    const source = await screen.findByLabelText("Texto de origem") as HTMLTextAreaElement;
-    expect(source.value).toContain("[Aba: Regras]");
-    expect(source.value).toContain("Campo=Status");
-  });
-
-  it("preserva imagem e log como blocos de evidência a confirmar", async () => {
-    const user = userEvent.setup();
-    const { container } = render(<Home />);
-    await user.upload(fileInput(container, "image/*"), new File([new Uint8Array([137, 80, 78, 71])], "erro.png", { type: "image/png" }));
-    await user.upload(fileInput(container, "text/plain"), textFile("app.log", "ERROR 500"));
-    const source = screen.getByLabelText("Texto de origem") as HTMLTextAreaElement;
-    await waitFor(() => expect(source.value).toContain("[IMAGEM · erro.png]"));
-    expect(source.value).toContain("[LOG · app.log]");
-    expect(source.value).toContain("ERROR 500");
   });
 
   it("copia um STEP e todos os STEPs diretamente na etapa de cenários", async () => {
@@ -129,7 +92,7 @@ describe("fluxo documental da Ferramenta da QA", () => {
     render(<Home />);
     await user.type(screen.getByLabelText("Texto de origem"), ["STEP 1", "Título: Cadastro", "Item 1", "Pré-condições", "Possuir acesso.", "Passos", "Abrir tela.", "Resultado esperado", "Exibir tela."].join("\n"));
     await user.click(screen.getByRole("checkbox"));
-    await user.click(screen.getByRole("button", { name: "Organizar entregas" }));
+    await user.click(screen.getByRole("button", { name: "Organizar História" }));
     await user.click(screen.getByRole("button", { name: "Gerar STEPs" }));
     await user.click(screen.getByRole("button", { name: "Copiar STEP" }));
     await user.click(screen.getByRole("button", { name: "Copiar todos os STEPs" }));
@@ -137,6 +100,30 @@ describe("fluxo documental da Ferramenta da QA", () => {
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Cadastro"));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Abrir tela."));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Exibir tela."));
+  });
+
+  it("organiza a narrativa SC-3786 como História de Usuário sem título ausente", async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+    await user.type(screen.getByLabelText("Texto de origem"), [
+      "⭐SC-3786 PBI01 - Enviar um comando para um equipamento",
+      "Descrição",
+      "Inserir o botão Comandos dentro da seção Dispositivos;",
+      "Ao determinar um dispositivo, tipo de comando e timeout, o botão Enviar fica habilitado;",
+      "Ponto de atenção: novos comandos precisam ser incluídos facilmente.",
+      "Obs: não será possível o envio para iscas ou comandos de sms nessa entrega.",
+      "Critérios de aceite",
+      "É possível enviar cada um dos comandos listados",
+    ].join("\n"));
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: "Organizar História" }));
+    expect(screen.getAllByText("SC-3786 PBI01 - Enviar um comando para um equipamento").length).toBeGreaterThan(0);
+    expect(screen.getByText("enviar um comando para um equipamento")).toBeTruthy();
+    expect(screen.getByText("pessoa usuária da funcionalidade")).toBeTruthy();
+    expect(screen.queryByText("Título não informado")).toBeNull();
+    expect(screen.queryByText("História de usuário não informada nos artefatos.")).toBeNull();
+    expect(screen.queryByText("About")).toBeNull();
+    expect(document.querySelector('input[type="file"]')).toBeNull();
   });
 
   it("executa o fluxo crítico completo e exporta sem acessar serviços externos", async () => {
@@ -152,7 +139,7 @@ describe("fluxo documental da Ferramenta da QA", () => {
       "Exibir a lista de clientes.",
     ].join("\n"));
     await user.click(screen.getByRole("checkbox"));
-    await user.click(screen.getByRole("button", { name: "Organizar entregas" }));
+    await user.click(screen.getByRole("button", { name: "Organizar História" }));
     await user.click(screen.getByRole("button", { name: "Gerar STEPs" }));
     await user.click(screen.getByRole("button", { name: "Analisar Performance" }));
     expect(screen.getByRole("heading", { name: "Análise Preventiva de Performance" })).toBeTruthy();

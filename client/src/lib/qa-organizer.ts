@@ -70,6 +70,8 @@ export type RequirementStructure = {
   exceptions: string[];
   data?: string[];
   technicalElements: string[];
+  dependencies: string[];
+  attentionPoints: string[];
   gaps: string[];
   gapDetails?: ClassifiedGap[];
 };
@@ -129,7 +131,11 @@ const REFERENCE = /\b(?:(?:SC[- ]\d+)|(?:item|pbi|pba|card)\s*(?:[#:]|-)?\s*(?=[
 const REFERENCE_LINE = /^(?:(?:SC[- ]\d+)|(?:item|pbi|pba|card)\s*(?:[#:]|-)?\s*(?=[A-Za-z0-9._/-]*\d)[A-Za-z0-9][A-Za-z0-9._/-]*)(?![A-Za-z0-9])$/i;
 
 function cleanLine(line: string) {
-  return line.trim().replace(/^[•▪●]\s*/, "").replace(/^\d+[.)]\s+/, "").trim();
+  return line
+    .trim()
+    .replace(/^\*{0,2}[⭐*•▪●]+\*{0,2}\s*/, "")
+    .replace(/^\d+[.)]\s+/, "")
+    .trim();
 }
 
 function splitLines(source: string) {
@@ -202,34 +208,99 @@ function extractSection(lines: string[], header: RegExp) {
   return values;
 }
 
-function extractRequirementStructure(lines: string[]): RequirementStructure {
-  const cleaned = lines.map(cleanLine).filter(Boolean);
-  const findStoryValues = (header: RegExp) => cleaned
+const GENERIC_LINE = /^(?:descrição|image\d*\.(?:png|jpe?g|webp)|comando\s+parâmetros?\s+id)$/i;
+const NARRATIVE_RULE = /(?:dropdown|seleção única|fica habilitado|vinculad[oa]s?|opções? disponíveis?|deve|precisa|é possível|ao determinar|quando)/i;
+const NARRATIVE_CONSTRAINT = /(?:não será possível|não será permitido|somente|apenas|fora desta entrega|nessa entrega|nesta entrega|PBI\d+|ausência de documentação)/i;
+const NARRATIVE_DEPENDENCY = /(?:depende|dependência|vinculad[oa]|worker|banco|objeto rastreável|documentação técnica)/i;
+const NARRATIVE_TECHNICAL = /(?:worker|banco|snackbar|dropdown|timeout|parâmetro|data\/hora|ID\b)/i;
+const NARRATIVE_ATTENTION = /^(?:ponto de atenção|atenção|observação importante)\s*:\s*(.+)$/i;
+
+function uniqueValues(values: string[]) {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
+}
+
+function lowerFirst(value: string) {
+  return value ? `${value[0].toLocaleLowerCase("pt-BR")}${value.slice(1)}` : value;
+}
+
+function narrativeContent(lines: string[]) {
+  return lines.map(cleanLine).filter((line) => line && !GENERIC_LINE.test(line) && !ALL_STRUCTURE_HEADERS.some((header) => header.test(line)));
+}
+
+function titleGoal(title: string) {
+  if (title === "Título não informado") return "";
+  const afterSeparator = title.split(/\s+[-–—]\s+/).slice(1).join(" - ").trim();
+  return afterSeparator || title.replace(/^(?:(?:SC[- ]?\d+)|(?:PBI\s*\d+)|(?:Item\s*[A-Za-z0-9._/-]+))\s*/i, "").trim();
+}
+
+function inferUserStory(lines: string[], acceptanceCriteria: string[]) {
+  const cleaned = narrativeContent(lines);
+  const explicit = (header: RegExp) => cleaned
     .map((line) => line.match(header)?.[1]?.trim())
     .filter((value): value is string => Boolean(value));
+  const explicitAsA = explicit(USER_STORY_HEADERS.asA);
+  const explicitIWant = explicit(USER_STORY_HEADERS.iWant);
+  const explicitSoThat = explicit(USER_STORY_HEADERS.soThat);
+  const goal = titleGoal(findTitle(lines)) || cleaned.find((line) => EXPLICIT_ACTION.test(line)) || "";
+  if (explicitAsA.length || explicitIWant.length || explicitSoThat.length) {
+    return { asA: explicitAsA, iWant: explicitIWant, soThat: explicitSoThat };
+  }
+  if (!goal) return { asA: [], iWant: [], soThat: [] };
+  const actorMatch = cleaned.join(" ").match(/\b(?:usuário|usuária|operador|operadora|analista|administrador|administradora|cliente|pessoa)\b/i)?.[0];
+  const outcome = acceptanceCriteria[0]
+    || cleaned.find((line) => /^(?:após|o sistema|mostra|exibe|salva|envia|permite)\b/i.test(line) && line !== goal);
+  const purpose = outcome
+    ? (/^é possível\s+/i.test(outcome) ? outcome.replace(/^é possível\s+/i, "seja possível ") : `o sistema ${lowerFirst(outcome).replace(/^o sistema\s+/i, "")}`)
+    : `seja possível concluir ${lowerFirst(goal)}`;
+  return {
+    asA: [actorMatch ? lowerFirst(actorMatch) : "pessoa usuária da funcionalidade"],
+    iWant: [lowerFirst(goal)],
+    soThat: [purpose.replace(/[.;]+$/, "")],
+  };
+}
+
+function inferNarrativeStructure(lines: string[]) {
+  const cleaned = narrativeContent(lines);
+  const attentionPoints = uniqueValues(cleaned.map((line) => line.match(NARRATIVE_ATTENTION)?.[1] ?? ""));
+  const technicalConstraints = uniqueValues(cleaned.filter((line) => NARRATIVE_CONSTRAINT.test(line)));
+  const businessRules = uniqueValues(cleaned.filter((line) => NARRATIVE_RULE.test(line) && !NARRATIVE_CONSTRAINT.test(line)));
+  const dependencies = uniqueValues(cleaned.filter((line) => NARRATIVE_DEPENDENCY.test(line)));
+  const technicalElements = uniqueValues(cleaned.filter((line) => NARRATIVE_TECHNICAL.test(line)));
+  const undefinedValues = cleaned.filter((line) => /(?:\?\s*$|ausência de documentação|não informado|não definida?|não especificad[oa])/i.test(line));
+  const gaps = uniqueValues(undefinedValues.map((line) => `Indefinição identificada: ${line}`));
+  return { attentionPoints, technicalConstraints, businessRules, dependencies, technicalElements, gaps };
+}
+
+function extractRequirementStructure(lines: string[]): RequirementStructure {
   const acceptanceCriteria = extractSection(lines, SECTION_HEADERS.acceptance).length
     ? extractSection(lines, SECTION_HEADERS.acceptance)
     : extractSection(lines, SECTION_HEADERS.expected);
-  const gaps = extractSection(lines, SECTION_HEADERS.gaps);
+  const explicitGaps = extractSection(lines, SECTION_HEADERS.gaps);
   const structure = (header: RegExp) => extractSection(lines, header);
-  const asA = findStoryValues(USER_STORY_HEADERS.asA);
-  const iWant = findStoryValues(USER_STORY_HEADERS.iWant);
-  const soThat = findStoryValues(USER_STORY_HEADERS.soThat);
+  const explicitBusinessRules = structure(STRUCTURE_HEADERS.businessRules);
+  const explicitTechnicalConstraints = structure(STRUCTURE_HEADERS.technicalConstraints);
+  const explicitTechnicalElements = structure(STRUCTURE_HEADERS.technicalElements);
+  const narrative = inferNarrativeStructure(lines);
+  const userStory = inferUserStory(lines, acceptanceCriteria);
   const inferredGaps = [
-    ...(asA.length || iWant.length || soThat.length ? [] : ["História de usuário não informada nos artefatos."]),
-    ...(!acceptanceCriteria.length ? ["Critérios de aceitação não informados nos artefatos."] : []),
+    ...(userStory.asA.length || userStory.iWant.length || userStory.soThat.length ? [] : ["Não foi possível derivar uma História de Usuário do conteúdo fornecido."]),
+    ...(!acceptanceCriteria.length ? ["Critérios de aceitação não informados no conteúdo fornecido."] : []),
+    ...narrative.gaps,
   ];
+  const gaps = uniqueValues([...explicitGaps, ...inferredGaps]);
   return {
-    userStory: { asA, iWant, soThat },
+    userStory,
     acceptanceCriteria,
-    businessRules: structure(STRUCTURE_HEADERS.businessRules),
-    technicalConstraints: structure(STRUCTURE_HEADERS.technicalConstraints),
+    businessRules: explicitBusinessRules.length ? explicitBusinessRules : narrative.businessRules,
+    technicalConstraints: explicitTechnicalConstraints.length ? explicitTechnicalConstraints : narrative.technicalConstraints,
     flows: structure(STRUCTURE_HEADERS.flows),
     exceptions: structure(STRUCTURE_HEADERS.exceptions),
     data: structure(STRUCTURE_HEADERS.data),
-    technicalElements: structure(STRUCTURE_HEADERS.technicalElements),
-    gaps: [...gaps, ...inferredGaps],
-    gapDetails: classifyGaps([...gaps, ...inferredGaps]),
+    technicalElements: explicitTechnicalElements.length ? explicitTechnicalElements : narrative.technicalElements,
+    dependencies: narrative.dependencies,
+    attentionPoints: narrative.attentionPoints,
+    gaps,
+    gapDetails: classifyGaps(gaps),
   };
 }
 
