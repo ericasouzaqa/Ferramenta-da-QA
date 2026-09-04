@@ -1,6 +1,6 @@
 {
   "name": "ferramenta-da-qa",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "type": "module",
   "main": "desktop/main.cjs",
   "license": "MIT",
