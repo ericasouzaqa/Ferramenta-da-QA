@@ -4,16 +4,11 @@ import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Home from "./Home";
 
-const { pdfExtractionMock, spreadsheetExtractionMock, toastMock } = vi.hoisted(() => ({
-  pdfExtractionMock: vi.fn(),
+const { spreadsheetExtractionMock, toastMock } = vi.hoisted(() => ({
   spreadsheetExtractionMock: vi.fn(),
   toastMock: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
-vi.mock("@/lib/pdf-reader", () => ({
-  extractPdfEvidence: pdfExtractionMock,
-  pdfSourceText: (extraction: { text: string; pages: Array<{ page: number }> }) => extraction.text || extraction.pages.map((page) => `[Página ${page.page}]\n(Sem camada de texto pesquisável.)`).join("\n\n"),
-}));
 vi.mock("@/lib/xlsx-reader", () => ({ extractSpreadsheetEvidence: spreadsheetExtractionMock }));
 vi.mock("sonner", () => ({ toast: toastMock }));
 
@@ -32,7 +27,6 @@ function textFile(name: string, content: string) {
 describe("fluxo documental da Ferramenta da QA", () => {
   beforeEach(() => {
     localStorage.clear();
-    pdfExtractionMock.mockReset();
     spreadsheetExtractionMock.mockReset();
     toastMock.success.mockReset();
     toastMock.error.mockReset();
@@ -46,13 +40,15 @@ describe("fluxo documental da Ferramenta da QA", () => {
     vi.restoreAllMocks();
   });
 
-  it("exibe somente as três etapas do fluxo principal", () => {
+  it("exibe as seis etapas do fluxo principal", () => {
     render(<Home />);
-    expect(screen.getByRole("button", { name: /Fonte/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Entregas/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Cenários STEP/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Texto Bruto/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Organizar História/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Gerar STEPs/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Performance/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Gaps/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Exportar/ })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Gherkin/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /Exportação/ })).toBeNull();
     expect(screen.queryByText(/Aplicativo|Planilha|Cards de bug|Triagem/)).toBeNull();
   });
 
@@ -63,7 +59,7 @@ describe("fluxo documental da Ferramenta da QA", () => {
     await user.type(source, "STEP 1\nTítulo: Cadastro\nItem 1");
     expect((screen.getByRole("button", { name: "Organizar entregas" }) as HTMLButtonElement).disabled).toBe(true);
     await user.click(screen.getByRole("button", { name: "Organizar entregas" }));
-    expect(screen.getByText("Fonte do documento")).toBeTruthy();
+    expect(screen.getByText("Texto bruto")).toBeTruthy();
     expect(toastMock.error).not.toHaveBeenCalled();
   });
 
@@ -84,8 +80,8 @@ describe("fluxo documental da Ferramenta da QA", () => {
     ].join("\n"));
     await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: "Organizar entregas" }));
-    expect(await screen.findByText("Organização por entrega")).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: "Ver cenários STEP" }));
+    expect(await screen.findByRole("heading", { name: "Organizar História" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Gerar STEPs" }));
     expect(screen.getByText("Ativar campanha")).toBeTruthy();
     expect(screen.getByText("Referência: Item 1")).toBeTruthy();
     expect(screen.getByText("Clicar em ativar.")).toBeTruthy();
@@ -99,21 +95,10 @@ describe("fluxo documental da Ferramenta da QA", () => {
     await user.type(screen.getByLabelText("Texto de origem"), "Título: Relato curto\nO botão não responde.");
     await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: "Organizar entregas" }));
-    await user.click(screen.getByRole("button", { name: "Ver cenários STEP" }));
+    await user.click(screen.getByRole("button", { name: "Gerar STEPs" }));
     expect(screen.getAllByText("Não informado no conteúdo de origem.").length).toBeGreaterThan(0);
     expect(screen.queryByText(/A funcionalidade deve concluir|Corrigir o comportamento descrito/)).toBeNull();
     expect(screen.getByText("Gaps e indefinições")).toBeTruthy();
-  });
-
-  it("lê PDF localmente e preserva o texto antes da confirmação", async () => {
-    const user = userEvent.setup();
-    pdfExtractionMock.mockResolvedValue({ text: "Requisito preservado.", pageCount: 1, hasSearchableText: true, pages: [{ page: 1, text: "Requisito preservado.", imageDataUrl: "data:image/jpeg;base64,AA==" }] });
-    const { container } = render(<Home />);
-    await user.upload(fileInput(container, "application/pdf"), new File(["pdf"], "requisito.pdf", { type: "application/pdf" }));
-    const source = await screen.findByLabelText("Texto de origem") as HTMLTextAreaElement;
-    await waitFor(() => expect(source.value).toContain("Requisito preservado."));
-    expect(source.value).toContain("[PDF: requisito.pdf]");
-    expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(false);
   });
 
   it("lê XLSX e preserva abas, cabeçalhos e linhas", async () => {
@@ -145,7 +130,7 @@ describe("fluxo documental da Ferramenta da QA", () => {
     await user.type(screen.getByLabelText("Texto de origem"), ["STEP 1", "Título: Cadastro", "Item 1", "Pré-condições", "Possuir acesso.", "Passos", "Abrir tela.", "Resultado esperado", "Exibir tela."].join("\n"));
     await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: "Organizar entregas" }));
-    await user.click(screen.getByRole("button", { name: "Ver cenários STEP" }));
+    await user.click(screen.getByRole("button", { name: "Gerar STEPs" }));
     await user.click(screen.getByRole("button", { name: "Copiar STEP" }));
     await user.click(screen.getByRole("button", { name: "Copiar todos os STEPs" }));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("STEP 1"));

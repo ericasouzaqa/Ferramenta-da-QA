@@ -1,69 +1,82 @@
-# Ferramenta da QA
+# Erika QA
 
-Aplicação local para preservar documentos, separar entregas e preparar cenários de teste. O fluxo mantido é:
+## Visão Geral
 
-> **Fonte → Organização por entrega → Cenários STEP**
+Erika QA é uma ferramenta local para apoiar Analistas de Qualidade na organização de histórias de usuário, estruturação de requisitos, geração de STEPs, identificação de riscos preventivos de performance e consolidação de gaps.
 
-A aplicação funciona como site estático e como aplicativo desktop portátil para Windows. Não exige conta, banco de dados, backend ou serviço externo obrigatório.
+A aplicação preserva a fonte original e trabalha de forma determinística, sem dependência obrigatória de IA, API, backend, banco de dados ou conexão externa.
 
-## Usar sem instalar
+## Objetivo
 
-A versão web está disponível em [ericasouzaqa.github.io/Ferramenta-da-QA](https://ericasouzaqa.github.io/Ferramenta-da-QA/).
+O objetivo é transformar texto bruto em material rastreável para QA, sem inventar comportamentos, completar lacunas ou substituir decisões do time.
 
-O executável portátil para Windows pode ser baixado na [release mais recente do GitHub](https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/latest). Baixe o arquivo `.exe` e execute-o em uma pasta local. Não é necessário instalar Node.js, pnpm ou outro componente.
+> O que não está na fonte não vira requisito.
 
-## Funcionalidades mantidas
+## Funcionalidades
 
-Na etapa **Fonte**, a ferramenta aceita texto, PDF, XLSX, TXT, imagens e logs. O conteúdo importado permanece disponível para conferência. PDFs e imagens podem passar por leitura local com OCR quando aplicável; materiais ambíguos ou ilegíveis são preservados e sinalizados para revisão, em vez de gerar informação presumida.
+O fluxo oficial é:
 
-Na etapa **Organização por entrega**, os blocos são separados por marcadores `STEP`, títulos ou referências explícitas. Quando o documento apresenta múltiplas histórias ou requisitos identificados como História, User Story, RF, Requisito, PBI, Item ou Entrega, cada item é organizado separadamente e recebe somente os seus próprios STEPs. Na etapa **Cenários STEP**, a aplicação organiza referência, história/requisito, origem, página quando disponível, trecho, pré-condições, dados explícitos, passos, resultado esperado e GAPs. Cada cenário recebe uma classificação informativa: **completo**, **parcial** ou **inconsistente**. Os GAPs são categorizados como funcional, critério, dados, fluxo ou técnico, sem criar soluções para ausências. A rastreabilidade registra a correspondência da funcionalidade, história, pré-condições, dados, passos, resultado e GAPs com a fonte original. A etapa também exibe a **Auditoria da Qualidade da Análise**, que consolida a qualidade do requisito, contagens dos STEPs, cobertura documental, GAPS, rastreabilidade, pontos de atenção e um resumo explicável. Os STEPs podem ser copiados individualmente ou em conjunto diretamente nessa etapa, prontos para colar no YouTrack ou em outra ferramenta. Gherkin e CSV não fazem parte da interface atual.
+`Texto Bruto → Organizar História → Gerar STEPs → Análise Preventiva de Performance → Gaps e Indefinições → Exportar Resultado`
 
-Os dados são mantidos localmente no perfil do navegador ou do aplicativo. Não existe sincronização entre máquinas, banco de dados, conta de usuário ou cópia automática para a nuvem.
+A etapa **Organizar História** identifica, quando presentes, os campos “Como um”, “Eu quero”, “Para que”, critérios de aceitação, regras de negócio, restrições, dependências, fluxos, exceções e pontos de atenção. A etapa **Gerar STEPs** produz pré-condições, passos objetivos e resultados esperados usando somente informações explícitas.
 
-## Desenvolvimento local
+A **Análise Preventiva de Performance** registra riscos observáveis e implícitos, objetivo, forma de teste, ferramenta recomendada, resultado esperado e justificativa. Ela não sugere soluções técnicas. **Gaps e Indefinições** consolida ambiguidades, conflitos, informações ausentes, regras incompletas e critérios insuficientes sem preencher lacunas.
+
+O resultado pode ser exportado localmente em **TXT**, **Markdown** e **Excel compatível com planilhas**. O processamento é exclusivamente textual e local.
+
+## Arquitetura
+
+A interface fica em `client/src/pages/Home.tsx`. As regras determinísticas de organização e geração de STEPs ficam em `client/src/lib/qa-organizer.ts`; a auditoria está em `client/src/lib/qa-audit.ts`; a análise preventiva está em `client/src/lib/qa-performance.ts`; e a exportação está em `client/src/lib/qa-export.ts`.
+
+A aplicação Web é construída com Vite, React e TypeScript. A versão Desktop utiliza Electron com isolamento de contexto, sem integração de credenciais ou armazenamento de secrets. Os dados permanecem no dispositivo por meio do armazenamento local do navegador/aplicativo.
+
+## Instalação
 
 Requisitos: **Node.js 22** e **pnpm**.
 
 ```bash
 pnpm install --frozen-lockfile --ignore-scripts
+```
+
+## Execução Web
+
+```bash
 pnpm dev
 ```
 
-Para abrir a versão desktop durante o desenvolvimento:
-
-```bash
-pnpm desktop:dev
-```
-
-Para validar o projeto e gerar a versão web:
+Para validação de produção:
 
 ```bash
 pnpm check
 pnpm test
 pnpm build
+pnpm start
 ```
 
-Para gerar localmente o executável portátil do Windows:
+## Execução Desktop
+
+Durante o desenvolvimento:
+
+```bash
+pnpm desktop:dev
+```
+
+Para gerar o executável portátil do Windows:
 
 ```bash
 pnpm desktop:win
 ```
 
-O arquivo é criado em `release/Ferramenta-da-QA-<versão>-portable.exe`. O build final para distribuição é executado no GitHub Actions em um ambiente Windows.
+O arquivo é criado em `release/`. A publicação final do executável ocorre pelo workflow do GitHub Actions em ambiente Windows.
 
-## Publicação de versões
+## Exportação
 
-O workflow `.github/workflows/release-windows.yml` executa a verificação de tipos, os testes, o build do Electron e publica o `.exe` na área de Releases quando uma tag no formato `v*` é enviada ao GitHub. O workflow `.github/workflows/deploy-pages.yml` publica a versão web na branch `main`, e `.github/workflows/quality.yml` mantém a validação contínua em pushes e pull requests.
+Depois de concluir a análise, acesse **Exportar Resultado**. Os arquivos incluem os STEPs, as validações preventivas de performance e os gaps consolidados. A geração acontece no próprio dispositivo.
 
-Para publicar uma nova versão, atualize o campo `version` do `package.json`, atualize o `CHANGELOG.md`, faça commit e envie a tag correspondente:
+## Publicação
 
-```bash
-git tag v1.5.0
-git push origin v1.5.0
-```
+O workflow de qualidade executa a verificação de tipos, testes e build. O workflow de páginas publica a versão Web, e o workflow de release prepara a versão Desktop para Windows quando uma tag de versão é enviada ao GitHub.
 
-## Estrutura essencial
+## Roadmap
 
-A interface principal fica em `client/src/pages/Home.tsx`. As regras de organização ficam em `client/src/lib/qa-organizer.ts`, e os leitores de PDF, planilhas, evidências e OCR ficam em `client/src/lib/`. A janela desktop e a ponte segura do Electron ficam em `desktop/`. O empacotamento do Windows é definido em `electron-builder.yml`.
-
-Antes de aceitar alterações, execute `pnpm check`, `pnpm test`, `pnpm build` e `pnpm desktop:win`. A execução funcional do `.exe` deve ser conferida em uma máquina Windows real. A ferramenta não exige IA, API, backend, banco de dados ou conexão externa para organizar os documentos. Quando a fonte não informar algo, a aplicação registra um GAP e mantém o conteúdo original para auditoria.
+O foco atual é manter o fluxo textual simples, rastreável e manutenível. Evoluções futuras devem preservar a operação local, a ausência de dependência obrigatória de IA e o princípio de não inventar informações ausentes.
