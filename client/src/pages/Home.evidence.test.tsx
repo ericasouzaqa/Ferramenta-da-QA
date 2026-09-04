@@ -143,7 +143,7 @@ describe("fluxo documental da Ferramenta da QA", () => {
     expect(screen.getByText(/HABILITAR MODO EMERGENCIA.+ID 108/)).toBeTruthy();
     expect(screen.getAllByText(/O ID do comando.+RESETAR MÓDULO.+\?/).length).toBeGreaterThan(0);
     expect(screen.getByText("Informar o timeout.")).toBeTruthy();
-  });
+  }, 15000);
 
   it("executa o fluxo crítico completo e exporta sem acessar serviços externos", async () => {
     const user = userEvent.setup();
@@ -171,5 +171,5 @@ describe("fluxo documental da Ferramenta da QA", () => {
     await user.click(screen.getByRole("button", { name: /Markdown/ }));
     await user.click(screen.getByRole("button", { name: /Excel/ }));
     expect(HTMLAnchorElement.prototype.click).toHaveBeenCalled();
-  });
+  }, 15000);
 });

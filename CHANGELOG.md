@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.3] — 2026-09-04
+
+### Corrigido
+
+- Aumentado o tempo máximo dos testes de fluxo para acomodar a execução mais lenta no ambiente Windows do GitHub Actions.
+
 ## [1.6.2] — 2026-09-04
 
 ### Corrigido
@@ -97,6 +103,7 @@
 - Entrada manual, PDF, OCR, XLSX, imagens, logs, exportações, aplicação Web e Electron/Desktop.
 - Fonte original, termos técnicos, mensagens, valores, status e gaps sem preenchimento presumido.
 
+[1.6.3]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.6.3
 [1.6.2]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.6.2
 [1.6.1]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.6.1
 [1.6.0]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.6.0
