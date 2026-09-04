@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.1] — 2026-09-04
+
+### Corrigido
+
+- Ajustada a espera dos testes de interface para evitar falhas ocasionais em ambientes Windows mais lentos.
+
 ## [1.6.0] — 2026-09-04
 
 ### Adicionado e melhorado
@@ -85,6 +91,7 @@
 - Entrada manual, PDF, OCR, XLSX, imagens, logs, exportações, aplicação Web e Electron/Desktop.
 - Fonte original, termos técnicos, mensagens, valores, status e gaps sem preenchimento presumido.
 
+[1.6.1]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.6.1
 [1.6.0]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.6.0
 [1.5.0]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.5.0
 [1.4.0]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.4.0

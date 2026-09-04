@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -126,6 +126,7 @@ describe("fluxo documental da Ferramenta da QA", () => {
     ].join("\n"));
     await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: "Organizar História" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Gerar STEPs" })).toBeTruthy(), { timeout: 15000 });
     expect(screen.getAllByText("SC-3786 PBI01 - Enviar um comando para um equipamento").length).toBeGreaterThan(0);
     expect(screen.getByText("enviar um comando para um equipamento")).toBeTruthy();
     expect(screen.getByText("usuário")).toBeTruthy();
@@ -158,6 +159,7 @@ describe("fluxo documental da Ferramenta da QA", () => {
     ].join("\n"));
     await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: "Organizar História" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Gerar STEPs" })).toBeTruthy(), { timeout: 15000 });
     await user.click(screen.getByRole("button", { name: "Gerar STEPs" }));
     await user.click(screen.getByRole("button", { name: "Analisar Performance" }));
     expect(screen.getByRole("heading", { name: "Análise Preventiva de Performance" })).toBeTruthy();
