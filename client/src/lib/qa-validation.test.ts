@@ -42,7 +42,7 @@ describe("validateScenarioAgainstSource", () => {
       status: "a confirmar",
     });
     expect(result.valid).toBe(false);
-    expect(result.warnings).toEqual(["Pré-condição sem correspondência literal na fonte."]);
+    expect(result.warnings).toEqual(["Pré-condição sem rastreabilidade suficiente na fonte."]);
     expect(result.traceability.preconditions).toEqual([false]);
     expect(result.traceability.steps).toEqual([true]);
   });

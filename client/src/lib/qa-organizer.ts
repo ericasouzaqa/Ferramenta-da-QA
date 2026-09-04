@@ -41,6 +41,7 @@ export type GeneratedScenario = {
     gaps: boolean[];
   };
   quality?: StepQuality;
+  sourceMode?: "explicit" | "narrative";
   storyTitle?: string;
   origin?: StepOrigin;
   gherkin: string;
@@ -343,6 +344,38 @@ function extractExplicitActions(lines: string[]) {
   return values;
 }
 
+function quotedTerms(value: string) {
+  return Array.from(value.matchAll(/["“”]([^"“”]+)["“”]/g), (match) => match[1]);
+}
+
+function professionalNarrativeSteps(lines: string[], fallback: string[]) {
+  const cleaned = narrativeContent(lines);
+  const steps: string[] = [];
+  const buttonPlacement = cleaned.find((line) => /botão.+(?:dentro|na)\s+da?\s+seção/i.test(line));
+  if (buttonPlacement) {
+    const [button, section] = quotedTerms(buttonPlacement);
+    if (section) steps.push(`Acessar a seção "${section}".`);
+    if (button) steps.push(`Acionar o botão "${button}".`);
+  }
+  const device = cleaned.find((line) => /^Dispositivo\s*:/i.test(line));
+  if (device) steps.push("Selecionar um dispositivo vinculado ao objeto rastreável.");
+  const command = cleaned.find((line) => /^Tipo de comando\s*:/i.test(line));
+  if (command) steps.push("Selecionar um tipo de comando disponível para o dispositivo.");
+  if (cleaned.some((line) => /tipo de comando e timeout.+botão Enviar fica habilitado/i.test(line))) {
+    steps.push("Informar o timeout descrito para o envio.");
+  }
+  if (cleaned.some((line) => /(?:após enviar|botão Enviar fica habilitado|snackbar de sucesso no envio)/i.test(line))) {
+    steps.push("Acionar o botão " + '"Enviar"' + ".");
+  }
+  return uniqueValues(steps.length ? steps : fallback);
+}
+
+function professionalNarrativeExpected(lines: string[], fallback: string[]) {
+  const cleaned = narrativeContent(lines);
+  const observable = cleaned.filter((line) => /(?:abre a janela|dentro da janela há|botão Enviar fica habilitado|envia para o worker|salva no banco|snackbar de sucesso)/i.test(line));
+  return uniqueValues([...observable, ...fallback]);
+}
+
 const SEMANTIC_BEHAVIOR_HEADER = /^(?:fluxo principal|fluxo alternativo|exceção|exceções|caminho alternativo)\s*:?$/i;
 
 type SemanticBehaviorBlock = { label: string; lines: string[] };
@@ -392,41 +425,49 @@ function buildScenarios(lines: string[], deliveryId: string, allowSemanticSplit 
   const data = extractSection(lines, STRUCTURE_HEADERS.data);
   const sectionSteps = extractSection(lines, SECTION_HEADERS.steps);
   const numberedSteps = extractNumberedSteps(lines);
-  const allSteps = sectionSteps.length ? sectionSteps : numberedSteps.length ? numberedSteps : extractExplicitActions(lines);
+  const extractedActions = extractExplicitActions(lines);
+  const sourceMode = sectionSteps.length || numberedSteps.length ? "explicit" as const : "narrative" as const;
+  const allSteps = sectionSteps.length
+    ? sectionSteps
+    : numberedSteps.length
+      ? numberedSteps
+      : professionalNarrativeSteps(lines, extractedActions);
   const explicitExpected = extractSection(lines, SECTION_HEADERS.expected);
-  const expectedResult = explicitExpected.length ? explicitExpected : extractSection(lines, SECTION_HEADERS.acceptance);
+  const acceptanceExpected = extractSection(lines, SECTION_HEADERS.acceptance);
+  const expectedResult = explicitExpected.length
+    ? explicitExpected
+    : sourceMode === "narrative"
+      ? professionalNarrativeExpected(lines, acceptanceExpected)
+      : acceptanceExpected;
   const explicitGaps = extractSection(lines, SECTION_HEADERS.gaps);
   const semanticGap = behaviorLabel && !expectedResult.length
     ? [`${behaviorLabel} sem informação explícita de resultado esperado.`]
     : [];
-  const chunks = allSteps.length ? Array.from({ length: Math.ceil(allSteps.length / 8) }, (_, index) => allSteps.slice(index * 8, index * 8 + 8)) : [[]];
-
-  return chunks.map((steps, index) => {
-    const gaps = [
-      ...explicitGaps,
-      ...semanticGap,
-      ...(title === "Título não informado" ? ["Título não informado nos artefatos."] : []),
-      ...(!preconditions.length ? ["Pré-condições não informadas nos artefatos."] : []),
-      ...(!allSteps.length ? ["Passos não informados nos artefatos."] : []),
-      ...(!expectedResult.length ? ["Resultado esperado não informado nos artefatos."] : []),
-    ];
-    return {
-      id: `${deliveryId}-scenario-${index + 1}`,
-      title: chunks.length > 1 ? `${title} (continuação ${index + 1})` : title,
-      storyTitle: title,
-      origin: { storyTitle: title, page: sourcePage(lines), excerpt: sourceExcerpt(lines) },
-      preconditions,
-      data,
-      steps,
-      expectedResult,
-      gaps,
-      gapDetails: classifyGaps(gaps),
-      quality: qualityFor(gaps),
-      gherkin: gherkin(title, preconditions, steps, expectedResult),
-      status: gaps.length ? "a confirmar" : "pronto",
-      reference: findReference(lines),
-    };
-  });
+  const gaps = [
+    ...explicitGaps,
+    ...semanticGap,
+    ...(title === "Título não informado" ? ["Título não informado nos artefatos."] : []),
+    ...(!preconditions.length ? ["Pré-condições não informadas nos artefatos."] : []),
+    ...(!allSteps.length ? ["Passos não informados nos artefatos."] : []),
+    ...(!expectedResult.length ? ["Resultado esperado não informado nos artefatos."] : []),
+  ];
+  return [{
+    id: `${deliveryId}-scenario-1`,
+    title,
+    storyTitle: title,
+    origin: { storyTitle: title, page: sourcePage(lines), excerpt: sourceExcerpt(lines) },
+    preconditions,
+    data,
+    steps: allSteps,
+    expectedResult,
+    gaps,
+    gapDetails: classifyGaps(gaps),
+    quality: qualityFor(gaps),
+    sourceMode,
+    gherkin: gherkin(title, preconditions, allSteps, expectedResult),
+    status: gaps.length ? "a confirmar" : "pronto",
+    reference: findReference(lines),
+  }];
 }
 
 export function formatScenario(scenario: GeneratedScenario) {
@@ -476,7 +517,7 @@ export function organizeQaMaterial(source: string): OrganizedQaMaterial | null {
     scenarios: delivery.scenarios.map((scenario) => {
       const validation = validateScenarioAgainstSource(delivery.sourceText, scenario);
       const gaps = Array.from(new Set([...scenario.gaps, ...validation.warnings]));
-      const inconsistent = validation.warnings.some((warning) => /sem correspondência literal|conflito|sem origem/i.test(warning))
+      const inconsistent = validation.warnings.some((warning) => /sem correspondência literal|sem rastreabilidade suficiente|conflito|sem origem/i.test(warning))
         || gaps.some((gap) => /conflito|sem origem/i.test(gap));
       return {
         ...scenario,

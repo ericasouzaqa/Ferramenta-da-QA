@@ -132,12 +132,12 @@ describe("organizeQaMaterial", () => {
     expect(result?.deliveries[1].scenarios[0].reference).toBe("PBI 2");
   });
 
-  it("divide uma funcionalidade com mais de oito passos em STEPs complementares", () => {
+  it("mantém um único caso de teste quando os passos pertencem ao mesmo objetivo", () => {
     const result = organizeQaMaterial(["STEP 1", "Título: Fluxo", "Passos", "1. Um", "2. Dois", "3. Três", "4. Quatro", "5. Cinco", "6. Seis", "7. Sete", "8. Oito", "9. Nove", "Resultado esperado", "Concluir."].join("\n"));
-    expect(result?.scenarios).toHaveLength(2);
-    expect(result?.scenarios[0].steps).toHaveLength(8);
-    expect(result?.scenarios[1].steps).toEqual(["Nove"]);
-    expect(result?.scenarios[1].title).toContain("continuação 2");
+    expect(result?.scenarios).toHaveLength(1);
+    expect(result?.scenarios[0].steps).toHaveLength(9);
+    expect(result?.scenarios[0].title).toBe("Fluxo");
+    expect(result?.scenarios[0].title).not.toContain("continuação");
   });
 
   it("preserva uma tabela da funcionalidade no STEP sem descartar linhas", () => {
@@ -159,7 +159,7 @@ describe("organizeQaMaterial", () => {
     expect(scenario.expectedResult).toEqual(["Exibir o pedido com status Pendente."]);
   });
 
-  it("não descarta funcionalidades quando uma entrega gera mais de dez STEPs", () => {
+  it("preserva um fluxo extenso sem transformar quantidade de linhas em quantidade de casos", () => {
     const source = [
       "STEP 1",
       "Título: Fluxo extenso",
@@ -169,9 +169,9 @@ describe("organizeQaMaterial", () => {
       "Concluir o fluxo.",
     ].join("\n");
     const result = organizeQaMaterial(source);
-    expect(result?.scenarios).toHaveLength(2);
-    expect(result?.scenarios.flatMap((scenario) => scenario.steps)).toHaveLength(11);
-    expect(result?.scenarios[1].steps).toEqual(["Executar ação 9.", "Executar ação 10.", "Executar ação 11."]);
+    expect(result?.scenarios).toHaveLength(1);
+    expect(result?.scenarios[0].steps).toHaveLength(11);
+    expect(result?.scenarios[0].expectedResult).toEqual(["Concluir o fluxo."]);
   });
 
   it("registra ausências e não usa frases de comportamento inventadas", () => {
@@ -389,5 +389,17 @@ describe("organização de narrativa em História de Usuário", () => {
     expect(requirement?.technicalElements.join(" ")).toMatch(/worker|banco|snackbar/i);
     expect(requirement?.gaps.join(" ")).toMatch(/RESETAR MÓDULO|timeout|parâmetro/i);
     expect(requirement?.gaps).not.toContain("História de usuário não informada nos artefatos.");
+    expect(result?.scenarios).toHaveLength(1);
+    expect(result?.scenarios[0].title).not.toContain("continuação");
+    expect(result?.scenarios[0].steps).toEqual([
+      "Acessar a seção \"Dispositivos\".",
+      "Acionar o botão \"Comandos\".",
+      "Selecionar um dispositivo vinculado ao objeto rastreável.",
+      "Selecionar um tipo de comando disponível para o dispositivo.",
+      "Informar o timeout descrito para o envio.",
+      "Acionar o botão \"Enviar\".",
+    ]);
+    expect(result?.scenarios[0].steps.every((step) => /^(?:Acessar|Acionar|Selecionar|Informar)\b/.test(step))).toBe(true);
+    expect(result?.scenarios[0].expectedResult.join(" ")).toMatch(/worker|banco|snackbar/i);
   });
 });
