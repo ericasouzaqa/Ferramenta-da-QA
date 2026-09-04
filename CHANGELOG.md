@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.6.0] — 2026-09-04
+
+### Adicionado e melhorado
+
+- Geração de STEPs organizada por objetivo de validação, com histórias e requisitos mais coerentes.
+- Ajustes na rastreabilidade, na auditoria e na identificação de informações incompletas.
+- Análise preventiva de performance e exportação dos resultados em TXT, Markdown e Excel.
+- Funcionamento offline validado e nova identidade visual da aplicação.
+- README simplificado para explicar a ferramenta em linguagem direta.
+
 ## [1.5.0] — 2026-08-30
 
 ### Melhorado
@@ -75,6 +85,7 @@
 - Entrada manual, PDF, OCR, XLSX, imagens, logs, exportações, aplicação Web e Electron/Desktop.
 - Fonte original, termos técnicos, mensagens, valores, status e gaps sem preenchimento presumido.
 
+[1.6.0]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.6.0
 [1.5.0]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.5.0
 [1.4.0]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.4.0
 [1.3.0]: https://github.com/ericasouzaqa/Ferramenta-da-QA/releases/tag/v1.3.0
