@@ -70,7 +70,7 @@ describe("fluxo documental da Ferramenta da QA", () => {
     expect(screen.getByText("Referência: Item 1")).toBeTruthy();
     expect(screen.getByText("Clicar em ativar.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Copiar todos os STEPs" })).toBeTruthy();
-    expect(screen.getByLabelText("Auditoria da qualidade")).toBeTruthy();
+    expect(screen.queryByLabelText("Auditoria da qualidade")).toBeNull();
   });
 
   it("registra gaps e não cria comportamento ausente", async () => {
@@ -82,7 +82,7 @@ describe("fluxo documental da Ferramenta da QA", () => {
     await user.click(screen.getByRole("button", { name: "Gerar STEPs" }));
     expect(screen.getAllByText("Não informado no conteúdo de origem.").length).toBeGreaterThan(0);
     expect(screen.queryByText(/A funcionalidade deve concluir|Corrigir o comportamento descrito/)).toBeNull();
-    expect(screen.getByText("Gaps e indefinições")).toBeTruthy();
+    expect(screen.getAllByText("Gaps e indefinições").length).toBeGreaterThan(0);
   });
 
   it("copia um STEP e todos os STEPs diretamente na etapa de cenários", async () => {
@@ -97,7 +97,6 @@ describe("fluxo documental da Ferramenta da QA", () => {
     await user.click(screen.getByRole("button", { name: "Copiar STEP" }));
     await user.click(screen.getByRole("button", { name: "Copiar todos os STEPs" }));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("STEP 1"));
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Cadastro"));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Abrir tela."));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Exibir tela."));
   });
@@ -110,6 +109,7 @@ describe("fluxo documental da Ferramenta da QA", () => {
       "Descrição",
       "Inserir o botão \"Comandos\" dentro da seção \"Dispositivos\";",
       "O botão abre a janela lateral \"Comandos\";",
+      "Dentro da janela há a seção \"Enviar novo comando\"",
       "Ao determinar um dispositivo, tipo de comando e timeout, o botão Enviar fica habilitado;",
       "Dispositivo: dropdown de seleção única com seriais vinculados ao objeto rastreável.",
       "Tipo de comando: dropdown de seleção única com comandos disponíveis para o dispositivo.",
@@ -134,10 +134,14 @@ describe("fluxo documental da Ferramenta da QA", () => {
     expect(screen.queryByText("About")).toBeNull();
     expect(document.querySelector('input[type="file"]')).toBeNull();
     await user.click(screen.getByRole("button", { name: "Gerar STEPs" }));
-    expect(screen.getByText("Possuir uma ocorrência da base.")).toBeTruthy();
-    expect(screen.getByText("HABILITAR MODO EMERGENCIA - 108")).toBeTruthy();
-    expect(screen.getAllByText(/Indefinição identificada: RESETAR MÓDULO/).length).toBeGreaterThan(0);
-    expect(screen.queryByText("Informar um valor de timeout.")).toBeNull();
+    expect(screen.getByRole("heading", { name: "Acessar Comandos" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Selecionar dispositivo" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Selecionar tipo de comando" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Enviar comando" })).toBeTruthy();
+    expect(screen.getByText("Possuir uma ocorrência da base com objeto rastreável ativo.")).toBeTruthy();
+    expect(screen.getByText(/HABILITAR MODO EMERGENCIA.+ID 108/)).toBeTruthy();
+    expect(screen.getAllByText(/O ID do comando.+RESETAR MÓDULO.+\?/).length).toBeGreaterThan(0);
+    expect(screen.getByText("Informar o timeout.")).toBeTruthy();
   });
 
   it("executa o fluxo crítico completo e exporta sem acessar serviços externos", async () => {

@@ -274,9 +274,29 @@ function inferNarrativeStructure(lines: string[]) {
     && !/^É possível\b/i.test(line)));
   const dependencies = uniqueValues(cleaned.filter((line) => NARRATIVE_DEPENDENCY.test(line)));
   const technicalElements = uniqueValues(cleaned.filter((line) => NARRATIVE_TECHNICAL.test(line)));
-  const undefinedValues = cleaned.filter((line) => /(?:\?\s*$|ausência de documentação|não informado|não definida?|não especificad[oa])/i.test(line));
-  const gaps = uniqueValues(undefinedValues.map((line) => `Indefinição identificada: ${line}`));
-  return { attentionPoints, technicalConstraints, businessRules, dependencies, technicalElements, gaps };
+  const gaps: string[] = [];
+  commandRows(lines).filter((command) => command.id === "?").forEach((command) => {
+    gaps.push(`O ID do comando "${command.name}" está definido como "?".`);
+  });
+  if (cleaned.some((line) => /timeout/i.test(line))) {
+    gaps.push("Não foram informados os valores permitidos, formato, unidade ou comportamento do campo de timeout.");
+  }
+  if (cleaned.some((line) => /(?:timeout|parâmetro).+PBI\s*0*4|PBI\s*0*4.+(?:timeout|parâmetro)/i.test(line))) {
+    gaps.push("A configuração de timeout e o envio de parâmetros foram explicitamente direcionados para o PBI04 e não estão detalhados neste requisito.");
+  }
+  if (cleaned.some((line) => /snackbar de sucesso/i.test(line)) && !cleaned.some((line) => /texto da snackbar|mensagem.+snackbar/i.test(line))) {
+    gaps.push("Não foi informado o texto da snackbar de sucesso.");
+  }
+  if (cleaned.some((line) => /envia para o worker/i.test(line))) {
+    gaps.push("Não foi especificado como validar o envio do comando ao worker.");
+  }
+  if (cleaned.some((line) => /salva no banco.+usuário.+data\/hora/i.test(line))) {
+    gaps.push("Não foi informada a estrutura ou os campos da gravação do comando no banco além do comando, usuário e data/hora.");
+  }
+  cleaned.filter((line) => /(?:não informado|não definida?|não especificad[oa])/i.test(line)).forEach((line) => {
+    gaps.push(`Indefinição identificada: ${line}`);
+  });
+  return { attentionPoints, technicalConstraints, businessRules, dependencies, technicalElements, gaps: uniqueValues(gaps) };
 }
 
 function extractRequirementStructure(lines: string[]): RequirementStructure {
@@ -355,48 +375,155 @@ function quotedTerms(value: string) {
   return Array.from(value.matchAll(/["“”]([^"“”]+)["“”]/g), (match) => match[1]);
 }
 
-function professionalNarrativePreconditions(lines: string[]) {
-  const text = narrativeContent(lines).join(" ");
-  const values: string[] = [];
-  if (/ocorrências? da base/i.test(text)) values.push("Possuir uma ocorrência da base.");
-  if (/objeto rastreável ativo/i.test(text)) values.push("Possuir um objeto rastreável ativo com dispositivo vinculado.");
-  if (/acatando comandos simples|comandos simples.+Mogno/i.test(text)) values.push("Utilizar um dispositivo que aceite comandos simples enviados via Mogno.");
-  return values;
+type CommandRow = { name: string; id: string; source: string };
+
+type NarrativeScenarioDraft = {
+  title: string;
+  preconditions: string[];
+  data?: string[];
+  steps: string[];
+  expectedResult: string[];
+};
+
+function commandRows(lines: string[]): CommandRow[] {
+  return lines.map(cleanLine).map((line) => {
+    const match = line.match(/^(.+?)\s+[-–—]\s+(\d+|\?)\s*$/);
+    return match ? { name: match[1].trim(), id: match[2], source: line } : null;
+  }).filter((row): row is CommandRow => Boolean(row));
 }
 
-function commandTestData(lines: string[]) {
-  return lines.map(cleanLine).filter((line) => /\s[-–—]\s\d+\s*$/.test(line));
+function narrativeScenario(
+  draft: NarrativeScenarioDraft,
+  deliveryId: string,
+  index: number,
+  storyTitle: string,
+  lines: string[],
+): GeneratedScenario {
+  const gaps: string[] = [];
+  return {
+    id: `${deliveryId}-scenario-${index + 1}`,
+    title: draft.title,
+    storyTitle,
+    origin: { storyTitle, page: sourcePage(lines), excerpt: sourceExcerpt(lines) },
+    preconditions: draft.preconditions,
+    data: draft.data ?? [],
+    steps: draft.steps,
+    expectedResult: draft.expectedResult,
+    gaps,
+    gapDetails: [],
+    quality: "completo",
+    sourceMode: "narrative",
+    gherkin: gherkin(draft.title, draft.preconditions, draft.steps, draft.expectedResult),
+    status: "pronto",
+    reference: findReference(lines),
+  };
 }
 
-function professionalNarrativeSteps(lines: string[], fallback: string[]) {
+function buildNarrativeScenarios(lines: string[], deliveryId: string, storyTitle: string): GeneratedScenario[] {
   const cleaned = narrativeContent(lines);
-  const steps: string[] = [];
+  const text = cleaned.join(" ");
   const buttonPlacement = cleaned.find((line) => /botão.+(?:dentro|na)\s+da?\s+seção/i.test(line));
-  if (buttonPlacement) {
-    const [button, section] = quotedTerms(buttonPlacement);
-    if (section) steps.push(`Acessar a seção "${section}".`);
-    if (button) steps.push(`Acionar o botão "${button}".`);
-  }
-  const device = cleaned.find((line) => /^Dispositivo\s*:/i.test(line));
-  if (device) steps.push("Selecionar um dispositivo vinculado ao objeto rastreável.");
-  const command = cleaned.find((line) => /^Tipo de comando\s*:/i.test(line));
-  if (command) steps.push("Selecionar um tipo de comando disponível para o dispositivo.");
-  const timeoutUndefined = cleaned.some((line) => /ausência de documentação.+timeout|timeout.+(?:PBI\d+|fora desta entrega)/i.test(line));
-  if (!timeoutUndefined && cleaned.some((line) => /tipo de comando e timeout.+botão Enviar fica habilitado/i.test(line))) {
-    steps.push("Informar um valor de timeout.");
-  }
-  if (cleaned.some((line) => /(?:após enviar|botão Enviar fica habilitado|snackbar de sucesso no envio)/i.test(line))) {
-    steps.push("Acionar o botão " + '"Enviar"' + ".");
-  }
-  return uniqueValues(steps.length ? steps : fallback);
-}
+  const openWindow = cleaned.find((line) => /botão.+abre.+janela lateral/i.test(line));
+  const innerSection = cleaned.find((line) => /dentro da janela.+seção/i.test(line));
+  const deviceDropdown = cleaned.find((line) => /^Dispositivo\s*:/i.test(line));
+  const commandDropdown = cleaned.find((line) => /^Tipo de comando\s*:/i.test(line));
+  const enableSend = cleaned.find((line) => /botão Enviar fica habilitado/i.test(line));
+  const worker = cleaned.find((line) => /envia para o worker/i.test(line));
+  const database = cleaned.find((line) => /salva no banco/i.test(line));
+  const snackbar = cleaned.find((line) => /snackbar de sucesso/i.test(line));
+  const commands = commandRows(lines);
+  const drafts: NarrativeScenarioDraft[] = [];
 
-function professionalNarrativeExpected(lines: string[], fallback: string[]) {
-  const cleaned = narrativeContent(lines);
-  const timeoutUndefined = cleaned.some((line) => /ausência de documentação.+timeout|timeout.+(?:PBI\d+|fora desta entrega)/i.test(line));
-  const observable = cleaned.filter((line) => /(?:abre a janela|dentro da janela há|botão Enviar fica habilitado|envia para o worker|salva no banco|snackbar de sucesso)/i.test(line)
-    && !(timeoutUndefined && /timeout/i.test(line)));
-  return uniqueValues([...observable, ...fallback]);
+  const [buttonName = "Comandos", sectionName = "Dispositivos"] = quotedTerms(buttonPlacement ?? "");
+  const windowName = quotedTerms(openWindow ?? "")[0] ?? buttonName;
+  const innerSectionName = quotedTerms(innerSection ?? "")[0] ?? "Enviar novo comando";
+
+  if (buttonPlacement && (openWindow || innerSection)) {
+    const preconditions = uniqueValues([
+      ...(/ocorrências? da base.+objeto rastreável ativo/i.test(text) ? ["Possuir uma ocorrência da base com objeto rastreável ativo."] : []),
+      ...(/dispositiv[oa]s? vinculad[oa]s?.+objeto rastreável/i.test(text) ? ["Possuir dispositivo vinculado ao objeto rastreável."] : []),
+      `Acessar a seção "${sectionName}".`,
+    ]);
+    drafts.push({
+      title: `Acessar ${buttonName}`,
+      preconditions,
+      steps: [
+        `Identificar o botão "${buttonName}" dentro da seção "${sectionName}".`,
+        `Acionar o botão "${buttonName}".`,
+      ],
+      expectedResult: uniqueValues([
+        ...(openWindow ? [`Abrir a janela lateral "${windowName}".`] : []),
+        ...(innerSection ? [`Exibir a seção "${innerSectionName}".`] : []),
+      ]),
+    });
+  }
+
+  if (deviceDropdown) {
+    drafts.push({
+      title: "Selecionar dispositivo",
+      preconditions: [
+        `Manter a janela lateral "${windowName}" aberta.`,
+        "Possuir dispositivos vinculados ao objeto rastreável.",
+      ],
+      steps: [
+        "Acionar o dropdown \"Dispositivo\".",
+        "Consultar as opções disponíveis.",
+        "Selecionar um dispositivo.",
+      ],
+      expectedResult: [
+        "Exibir no dropdown \"Dispositivo\" a relação de seriais dos dispositivos vinculados ao objeto rastreável.",
+        "Permitir a seleção de apenas um dispositivo.",
+      ],
+    });
+  }
+
+  if (commandDropdown) {
+    drafts.push({
+      title: "Selecionar tipo de comando",
+      preconditions: [
+        `Manter a janela lateral "${windowName}" aberta.`,
+        "Ter um dispositivo selecionado.",
+      ],
+      data: commands.map((command) => command.source),
+      steps: [
+        "Acionar o dropdown \"Tipo de comando\".",
+        "Consultar as opções disponíveis.",
+        "Selecionar cada comando listado, individualmente.",
+      ],
+      expectedResult: [
+        "Disponibilizar os seguintes comandos para seleção:",
+        ...commands.map((command) => command.id === "?"
+          ? `  - "${command.name}".`
+          : `  - "${command.name}" — ID ${command.id}.`),
+        "Permitir a seleção de apenas um tipo de comando.",
+      ],
+    });
+  }
+
+  if (enableSend || worker || database || snackbar) {
+    drafts.push({
+      title: "Enviar comando",
+      preconditions: uniqueValues([
+        `Manter a janela lateral "${windowName}" aberta.`,
+        "Ter um dispositivo selecionado.",
+        "Ter um tipo de comando selecionado.",
+        ...(/timeout/i.test(text) ? ["Possuir a configuração de timeout disponível conforme o fluxo implementado."] : []),
+      ]),
+      steps: [
+        ...(/timeout/i.test(text) ? ["Informar o timeout."] : []),
+        ...(enableSend ? ["Verificar o estado do botão \"Enviar\"."] : []),
+        "Acionar o botão \"Enviar\".",
+      ],
+      expectedResult: uniqueValues([
+        ...(enableSend ? ["Habilitar o botão \"Enviar\" após determinar o dispositivo, o tipo de comando e o timeout."] : []),
+        ...(worker ? ["Enviar o comando para o worker."] : []),
+        ...(database ? ["Salvar no banco o comando enviado, o usuário que o enviou e a data/hora."] : []),
+        ...(snackbar ? ["Exibir uma snackbar de sucesso no envio."] : []),
+      ]),
+    });
+  }
+
+  return drafts.map((draft, index) => narrativeScenario(draft, deliveryId, index, storyTitle, lines));
 }
 
 const SEMANTIC_BEHAVIOR_HEADER = /^(?:fluxo principal|fluxo alternativo|exceção|exceções|caminho alternativo)\s*:?$/i;
@@ -444,26 +571,20 @@ function buildScenarios(lines: string[], deliveryId: string, allowSemanticSplit 
 
   const baseTitle = findTitle(lines);
   const title = behaviorLabel ? `${baseTitle} — ${behaviorLabel}` : baseTitle;
-  const explicitPreconditions = extractSection(lines, SECTION_HEADERS.preconditions);
-  const preconditions = explicitPreconditions.length ? explicitPreconditions : professionalNarrativePreconditions(lines);
-  const explicitData = extractSection(lines, STRUCTURE_HEADERS.data);
-  const data = explicitData.length ? explicitData : commandTestData(lines);
   const sectionSteps = extractSection(lines, SECTION_HEADERS.steps);
   const numberedSteps = extractNumberedSteps(lines);
-  const extractedActions = extractExplicitActions(lines);
   const sourceMode = sectionSteps.length || numberedSteps.length ? "explicit" as const : "narrative" as const;
-  const allSteps = sectionSteps.length
-    ? sectionSteps
-    : numberedSteps.length
-      ? numberedSteps
-      : professionalNarrativeSteps(lines, extractedActions);
+  if (sourceMode === "narrative") {
+    const narrativeScenarios = buildNarrativeScenarios(lines, deliveryId, title);
+    if (narrativeScenarios.length) return narrativeScenarios;
+  }
+  const preconditions = extractSection(lines, SECTION_HEADERS.preconditions);
+  const data = extractSection(lines, STRUCTURE_HEADERS.data);
+  const extractedActions = extractExplicitActions(lines);
+  const allSteps = sectionSteps.length ? sectionSteps : numberedSteps.length ? numberedSteps : extractedActions;
   const explicitExpected = extractSection(lines, SECTION_HEADERS.expected);
   const acceptanceExpected = extractSection(lines, SECTION_HEADERS.acceptance);
-  const expectedResult = explicitExpected.length
-    ? explicitExpected
-    : sourceMode === "narrative"
-      ? professionalNarrativeExpected(lines, acceptanceExpected)
-      : acceptanceExpected;
+  const expectedResult = explicitExpected.length ? explicitExpected : acceptanceExpected;
   const explicitGaps = extractSection(lines, SECTION_HEADERS.gaps);
   const semanticGap = behaviorLabel && !expectedResult.length
     ? [`${behaviorLabel} sem informação explícita de resultado esperado.`]
@@ -496,23 +617,27 @@ function buildScenarios(lines: string[], deliveryId: string, allowSemanticSplit 
 }
 
 export function formatScenario(scenario: GeneratedScenario) {
-  const list = (items: string[]) => items.length ? items.map((item, index) => `${index + 1}. ${item}`).join("\n") : NOT_INFORMED;
-  const preconditions = scenario.preconditions;
+  const numbered = (items: string[]) => items.length ? items.map((item, index) => `${index + 1}. ${item}`).join("\n") : NOT_INFORMED;
+  const bullets = (items: string[]) => items.length ? items.map((item) => item.startsWith("  - ") ? item : `- ${item}`).join("\n") : NOT_INFORMED;
   const data = scenario.data ?? [];
-  const gaps = scenario.gaps.length ? scenario.gaps.map((item, index) => `${index + 1}. ${item}`).join("\n") : "Nenhuma lacuna registrada.";
+  const showData = scenario.sourceMode !== "narrative" && data.length > 0;
+  const gaps = scenario.gaps.length ? bullets(scenario.gaps) : "Nenhuma lacuna registrada.";
   return [
-    `STEP ${scenario.id.match(/scenario-(\d+)$/)?.[1] ?? "1"} - ${scenario.title}`,
+    `STEP ${scenario.id.match(/scenario-(\d+)$/)?.[1] ?? "1"}`,
     "",
     "Pré-condições",
-    list(preconditions),
     "",
-    ...(data.length ? ["Dados de teste", list(data), ""] : []),
+    bullets(scenario.preconditions),
+    "",
+    ...(showData ? ["Dados de teste", "", bullets(data), ""] : []),
     "Passos",
-    list(scenario.steps),
+    "",
+    numbered(scenario.steps),
     "",
     "Resultado esperado",
-    list(scenario.expectedResult),
-    ...(scenario.gaps.length ? ["", "Gaps e indefinições", gaps] : []),
+    "",
+    bullets(scenario.expectedResult),
+    ...(scenario.gaps.length ? ["", "Gaps e indefinições", "", gaps] : []),
   ].join("\n");
 }
 
@@ -540,7 +665,9 @@ export function organizeQaMaterial(source: string): OrganizedQaMaterial | null {
     ...delivery,
     scenarios: delivery.scenarios.map((scenario) => {
       const validation = validateScenarioAgainstSource(delivery.sourceText, scenario);
-      const contextualRequirementGaps = delivery.requirement.gaps.filter((gap) => !/Critérios de aceitação não informados|Não foi possível derivar uma História de Usuário/i.test(gap));
+      const contextualRequirementGaps = scenario.sourceMode === "narrative"
+        ? []
+        : delivery.requirement.gaps.filter((gap) => !/Critérios de aceitação não informados|Não foi possível derivar uma História de Usuário/i.test(gap));
       const gaps = Array.from(new Set([...scenario.gaps, ...contextualRequirementGaps, ...validation.warnings]));
       const inconsistent = validation.warnings.some((warning) => /sem correspondência literal|sem rastreabilidade suficiente|conflito|sem origem/i.test(warning))
         || gaps.some((gap) => /conflito|sem origem/i.test(gap));

@@ -50,10 +50,10 @@ describe("organizeQaMaterial", () => {
       "Cadastro exibido.",
     ].join("\n"));
     const formatted = formatScenario(result!.scenarios[0]);
-    expect(formatted).toContain("STEP 1 - Cadastro");
-    expect(formatted).toContain("Pré-condições\n1. Usuário com acesso.\n\nDados de teste\n1. E-mail: qa@exemplo.com.");
-    expect(formatted).toContain("Passos\n1. Preencher o nome.");
-    expect(formatted).toContain("Resultado esperado\n1. Cadastro exibido.");
+    expect(formatted).toContain("STEP 1\n");
+    expect(formatted).toContain("Pré-condições\n\n- Usuário com acesso.\n\nDados de teste\n\n- E-mail: qa@exemplo.com.");
+    expect(formatted).toContain("Passos\n\n1. Preencher o nome.");
+    expect(formatted).toContain("Resultado esperado\n\n- Cadastro exibido.");
     expect(formatted).not.toContain("História/Requisito");
     expect(formatted).not.toContain("Gherkin");
     expect(formatted).not.toContain("Origem:");
@@ -154,7 +154,7 @@ describe("organizeQaMaterial", () => {
     ].join("\n"));
     const scenario = result!.scenarios[0];
     expect(scenario.data).toEqual(["| Campo | Valor |", "| Status | Pendente |"]);
-    expect(formatScenario(scenario)).toContain("Dados de teste\n1. | Campo | Valor |\n2. | Status | Pendente |");
+    expect(formatScenario(scenario)).toContain("Dados de teste\n\n- | Campo | Valor |\n- | Status | Pendente |");
     expect(scenario.steps).toEqual(["Consultar pedidos."]);
     expect(scenario.expectedResult).toEqual(["Exibir o pedido com status Pendente."]);
   });
@@ -364,6 +364,13 @@ describe("organização de narrativa em História de Usuário", () => {
       "Tipo de comando: dropdown de seleção única com opções de comandos disponíveis para o dispositivo.",
       "HABILITAR MODO EMERGENCIA - 108",
       "DESABILITAR MODO EMERGENCIA - 74",
+      "LORAWAN ATIVAR MODO EMERGENCIA - 138",
+      "LORAWAN DESATIVAR MODO EMERGENCIA - 139",
+      "ATIVAR OUTPUT1 - 7",
+      "DESATIVAR OUTPUT1 - 9",
+      "ATIVAR OUTPUT2 - 8",
+      "DESATIVAR OUTPUT2 - 10",
+      "SOLICITAR POSIÇÃO - 69",
       "RESETAR MÓDULO - ?",
       "Ponto de atenção: novos comandos precisam ser incluídos nessa tabela de forma fácil e rápida.",
       "Após enviar, o sistema:",
@@ -391,23 +398,52 @@ describe("organização de narrativa em História de Usuário", () => {
     expect(requirement?.technicalElements.join(" ")).toMatch(/worker|banco|snackbar/i);
     expect(requirement?.gaps.join(" ")).toMatch(/RESETAR MÓDULO|timeout|parâmetro/i);
     expect(requirement?.gaps).not.toContain("História de usuário não informada nos artefatos.");
-    expect(result?.scenarios).toHaveLength(1);
-    expect(result?.scenarios[0].title).not.toContain("continuação");
-    expect(result?.scenarios[0].steps).toEqual([
+    expect(result?.scenarios).toHaveLength(4);
+    const [access, device, command, submit] = result!.scenarios;
+
+    expect(access.preconditions).toEqual([
+      "Possuir uma ocorrência da base com objeto rastreável ativo.",
+      "Possuir dispositivo vinculado ao objeto rastreável.",
       "Acessar a seção \"Dispositivos\".",
+    ]);
+    expect(access.steps).toEqual([
+      "Identificar o botão \"Comandos\" dentro da seção \"Dispositivos\".",
       "Acionar o botão \"Comandos\".",
-      "Selecionar um dispositivo vinculado ao objeto rastreável.",
-      "Selecionar um tipo de comando disponível para o dispositivo.",
+    ]);
+    expect(access.expectedResult).toEqual([
+      "Abrir a janela lateral \"Comandos\".",
+      "Exibir a seção \"Enviar novo comando\".",
+    ]);
+
+    expect(device.steps).toEqual([
+      "Acionar o dropdown \"Dispositivo\".",
+      "Consultar as opções disponíveis.",
+      "Selecionar um dispositivo.",
+    ]);
+    expect(device.expectedResult.join(" ")).toMatch(/seriais.+vinculados|seleção de apenas um dispositivo/i);
+
+    expect(command.steps).toEqual([
+      "Acionar o dropdown \"Tipo de comando\".",
+      "Consultar as opções disponíveis.",
+      "Selecionar cada comando listado, individualmente.",
+    ]);
+    expect(command.data).toHaveLength(10);
+    expect(command.expectedResult.join(" ")).toMatch(/HABILITAR MODO EMERGENCIA.+108.+RESETAR MÓDULO.+apenas um tipo de comando/i);
+
+    expect(submit.steps).toEqual([
+      "Informar o timeout.",
+      "Verificar o estado do botão \"Enviar\".",
       "Acionar o botão \"Enviar\".",
     ]);
-    expect(result?.scenarios[0].steps.every((step) => /^(?:Acessar|Acionar|Selecionar)\b/.test(step))).toBe(true);
-    expect(result?.scenarios[0].steps.join(" ")).not.toMatch(/timeout|parâmetro/i);
-    expect(result?.scenarios[0].preconditions.join(" ")).toMatch(/ocorrência da base|objeto rastreável ativo|Mogno/i);
-    expect(result?.scenarios[0].data).toEqual([
-      "HABILITAR MODO EMERGENCIA - 108",
-      "DESABILITAR MODO EMERGENCIA - 74",
-    ]);
-    expect(result?.scenarios[0].expectedResult.join(" ")).toMatch(/worker|banco|snackbar/i);
-    expect(result?.scenarios[0].gaps.join(" ")).toMatch(/RESETAR MÓDULO|timeout|parâmetro/i);
+    expect(submit.expectedResult.join(" ")).toMatch(/Habilitar o botão.+worker.+banco.+snackbar/i);
+    expect(result?.scenarios.every((scenario) => !scenario.title.includes("continuação"))).toBe(true);
+    expect(requirement?.gaps).toEqual(expect.arrayContaining([
+      expect.stringMatching(/ID.+RESETAR MÓDULO/i),
+      expect.stringMatching(/valores permitidos.+timeout/i),
+      expect.stringMatching(/PBI04/i),
+      expect.stringMatching(/texto da snackbar/i),
+      expect.stringMatching(/validar o envio.+worker/i),
+      expect.stringMatching(/estrutura.+gravação.+banco/i),
+    ]));
   });
 });

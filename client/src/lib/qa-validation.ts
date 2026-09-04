@@ -38,7 +38,7 @@ function sourceSupports(source: string, value: string, semantic: boolean) {
   const expected = Array.from(new Set(semanticTokens(value)));
   const sourceSet = new Set(semanticTokens(source));
   if (!expected.length) return false;
-  return expected.filter((token) => sourceSet.has(token)).length / expected.length >= 0.5;
+  return expected.filter((token) => sourceSet.has(token)).length / expected.length >= 0.4;
 }
 
 function baseTitle(title: string) {

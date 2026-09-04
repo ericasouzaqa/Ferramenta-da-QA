@@ -80,6 +80,8 @@ h4 { margin-bottom: 6px; color: #31515a; font-size: 13px; text-transform: upperc
 .scenario-content p, .scenario-content ol, .scenario-content ul { margin: 0 0 8px; padding-left: 20px; }
 .scenario-content p span { display: block; }
 .scenario-content ul { color: #8a5a17; }
+.scenario-content .structured-list { color: #526b71; }
+.scenario-content .structured-list .is-nested { margin-left: 22px; list-style-type: circle; }
 .scenario-card > .button { margin-top: 16px; }
 .code-panel { margin: 0 30px 18px; border-radius: 12px; padding: 20px; background: #172f36; color: #e4f5f2; font-family: "Courier New", monospace; font-size: 13px; }
 .empty-state { margin: 0 30px 20px; border: 1px dashed #b6c9c6; border-radius: 12px; padding: 30px; color: #657b80; text-align: center; line-height: 1.6; }

@@ -1,5 +1,5 @@
 import type { PerformanceValidation } from "./qa-performance";
-import type { GeneratedScenario, OrganizedQaMaterial } from "./qa-organizer";
+import { formatScenario, type GeneratedScenario, type OrganizedQaMaterial } from "./qa-organizer";
 
 export type ExportBundle = {
   scenarios: GeneratedScenario[];
@@ -17,14 +17,9 @@ export function buildExportBundle(material: OrganizedQaMaterial, performance: Pe
 }
 
 export function formatExportMarkdown(bundle: ExportBundle): string {
-  const steps = bundle.scenarios.length ? bundle.scenarios.map((scenario, index) => [
-    `## STEP ${index + 1} — ${scenario.title}`,
-    `**Pré-condições:** ${scenario.preconditions.join("; ") || "Não informado no conteúdo de origem."}`,
-    ...(scenario.data?.length ? [`**Dados de teste:** ${scenario.data.join("; ")}`] : []),
-    "**Passos:**",
-    ...(scenario.steps.length ? scenario.steps.map((step, stepIndex) => `${stepIndex + 1}. ${step}`) : ["Não informado no conteúdo de origem."]),
-    `**Resultado esperado:** ${scenario.expectedResult.join("; ") || "Não informado no conteúdo de origem."}`,
-  ].join("\n") ).join("\n\n") : "Nenhum STEP estruturado foi reconhecido.";
+  const steps = bundle.scenarios.length
+    ? bundle.scenarios.map(formatScenario).join("\n\n---\n\n")
+    : "Nenhum STEP estruturado foi reconhecido.";
   const performance = bundle.performance.length ? bundle.performance.map((item) => [
     `### ${item.title}`,
     `- **Objetivo:** ${item.objective}`,
